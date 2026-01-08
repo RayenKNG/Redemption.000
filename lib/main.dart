@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:google_fonts/google_fonts.dart'; // Biar font-nya modern
-import 'screens/home_screen.dart'; // Panggil halaman home tadi
+import 'package:google_fonts/google_fonts.dart';
+import 'screens/home_screen.dart';
 
 void main() async {
-  // WidgetsFlutterBinding.ensureInitialized();  <-- KASIH GARIS MIRING (//)
+  WidgetsFlutterBinding.ensureInitialized();
 
-  // Matikan dulu baris ini biar aplikasi mau jalan walau tanpa database
-  // await Firebase.initializeApp();             <-- KASIH GARIS MIRING (//)
+  await Firebase.initializeApp();
 
   runApp(const MyApp());
 }
