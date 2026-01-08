@@ -11,10 +11,10 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # --- ALAT WAJIB (DATABASE & LOGIN) ---
-  firebase_core: ^2.24.2
-  firebase_auth: ^4.16.0
-  cloud_firestore: ^4.14.0
+ # --- FIREBASE (VERSI BARU YANG LEBIH STABIL) ---
+  firebase_core: ^2.27.0
+  firebase_auth: ^4.17.9
+  cloud_firestore: ^4.15.9
   
   # --- PENGATUR DATA (State Management) ---
   provider: ^6.0.0
