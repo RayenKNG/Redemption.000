@@ -4,11 +4,10 @@ import 'package:google_fonts/google_fonts.dart'; // Biar font-nya modern
 import 'screens/home_screen.dart'; // Panggil halaman home tadi
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  // WidgetsFlutterBinding.ensureInitialized();  <-- KASIH GARIS MIRING (//)
 
-  // Inisialisasi Firebase (Kita siapkan dari sekarang biar nanti Login lancar)
-  // Kalau error di tahap ini, nanti kita komen dulu baris di bawah ini
-  await Firebase.initializeApp();
+  // Matikan dulu baris ini biar aplikasi mau jalan walau tanpa database
+  // await Firebase.initializeApp();             <-- KASIH GARIS MIRING (//)
 
   runApp(const MyApp());
 }
