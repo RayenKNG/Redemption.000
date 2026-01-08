@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:google_fonts/google_fonts.dart'; // Biar font-nya modern
 import 'screens/home_screen.dart'; // Panggil halaman home tadi
+import 'screens/login_screen.dart';
 
 void main() async {
   // WidgetsFlutterBinding.ensureInitialized();  <-- KASIH GARIS MIRING (//)
@@ -26,7 +27,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.green,
         useMaterial3: true,
       ),
-      home: const HomeScreen(), // <-- Ini dia pintu masuknya
+      home: const LoginScreen(), // <-- Ini dia pintu masuknya
     );
   }
 }
