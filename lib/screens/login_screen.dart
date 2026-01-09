@@ -93,4 +93,29 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
+
+  // Fungsi Pembantu buat bikin Input Kaca
+  Widget _buildGlassInput(
+    IconData icon,
+    String hint, {
+    bool isPassword = false,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.2), // Latar transparan
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: TextField(
+        obscureText: isPassword,
+        style: const TextStyle(color: Colors.white), // Warna teks ketikan
+        decoration: InputDecoration(
+          prefixIcon: Icon(icon, color: Colors.white70),
+          hintText: hint,
+          hintStyle: const TextStyle(color: Colors.white54),
+          border: InputBorder.none, // Hilangkan garis bawah standar
+          contentPadding: const EdgeInsets.symmetric(vertical: 15),
+        ),
+      ),
+    );
+  }
 }
