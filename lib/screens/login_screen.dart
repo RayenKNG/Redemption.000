@@ -58,7 +58,30 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
-                        children: const [SizedBox(height: 200)],
+                        children: const [
+                          Text(
+                            "SavePlate",
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              letterSpacing: 2,
+                            ),
+                          ),
+
+                          SizedBox(height: 10),
+
+                          Text(
+                            "Selamatkan makanan, selamatkan bumi.",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+
+                          SizedBox(height: 30),
+                        ],
                       ),
                     ),
                   ),
