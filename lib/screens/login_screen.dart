@@ -121,6 +121,29 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           const SizedBox(height: 30),
+                          // Tombol ke Halaman Daftar
+                          TextButton(
+                            onPressed: () {
+                              // Nanti kita arahkan ke halaman register di sini
+                            },
+                            child: RichText(
+                              text: const TextSpan(
+                                text: "Belum punya akun? ",
+                                style: TextStyle(color: Colors.white70),
+                                children: [
+                                  TextSpan(
+                                    text: "Daftar",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      decoration: TextDecoration
+                                          .underline, // Garis bawah biar jelas link
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
