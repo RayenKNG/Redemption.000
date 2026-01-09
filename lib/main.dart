@@ -3,7 +3,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'screens/login_screen.dart';
 import 'firebase_options.dart';
-import 'screens/home_screen.dart'; // Panggil halaman home tadi
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
