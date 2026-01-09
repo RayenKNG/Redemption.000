@@ -26,7 +26,6 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         child: Stack(
           children: [
-            // Lingkaran Dekorasi 1 (Pojok Kiri Atas - agak keluar layar)
             Positioned(
               top: -50,
               left: -50,
@@ -35,7 +34,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 height: 200,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.3), // Putih transparan
+                  color: Colors.white.withOpacity(0.3),
                 ),
               ),
             ),
