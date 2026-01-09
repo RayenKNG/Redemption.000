@@ -144,6 +144,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                           ),
+                          const SizedBox(
+                            height: 20,
+                          ), // Jarak napas terakhir di bawah
                         ],
                       ),
                     ),
