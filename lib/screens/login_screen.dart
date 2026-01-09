@@ -27,14 +27,14 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Stack(
           children: [
             Positioned(
-              top: -50,
-              left: -50,
+              bottom: -50,
+              right: -50,
               child: Container(
-                width: 200,
-                height: 200,
+                width: 150,
+                height: 150,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.3),
+                  color: Colors.white.withOpacity(0.2),
                 ),
               ),
             ),
