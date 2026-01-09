@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'dart:ui';
-import 'home_screen.dart'; // Pastikan ini yang di-import
+import 'home_screen.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -131,7 +132,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           // Tombol ke Halaman Daftar
                           TextButton(
                             onPressed: () {
-                              // Nanti kita arahkan ke halaman register di sini
+                              // Navigasi ke Halaman Register
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const RegisterScreen(),
+                                ),
+                              );
                             },
                             child: RichText(
                               text: const TextSpan(
