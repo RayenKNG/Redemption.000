@@ -41,49 +41,49 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyDyc6KXt-ky8zAlG3hQ9ObTHwpoMIgeyJE',
-    appId: '1:443285938782:web:032c345e0746419929cacf',
-    messagingSenderId: '443285938782',
-    projectId: 'save-plate',
-    authDomain: 'save-plate.firebaseapp.com',
-    storageBucket: 'save-plate.firebasestorage.app',
-    measurementId: 'G-MG7L4FZ8R0',
+    apiKey: 'AIzaSyDIyrEuCFt8b2gO1STNIp9MNgNatUmu4RQ',
+    appId: '1:627571054534:web:b3dcd722912580a518c4c7',
+    messagingSenderId: '627571054534',
+    projectId: 'saveeplate',
+    authDomain: 'saveeplate.firebaseapp.com',
+    storageBucket: 'saveeplate.firebasestorage.app',
+    measurementId: 'G-E2HR2VSH9K',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyCLePPbGaBW5vyDkSFpSWjEYzdLCV8rVMo',
-    appId: '1:443285938782:android:6629094fdf5f770e29cacf',
-    messagingSenderId: '443285938782',
-    projectId: 'save-plate',
-    storageBucket: 'save-plate.firebasestorage.app',
+    apiKey: 'AIzaSyAbtas3gdyi3mn_wNpk9HQietnVOUxtwv4',
+    appId: '1:627571054534:android:d83712a5e72cffd718c4c7',
+    messagingSenderId: '627571054534',
+    projectId: 'saveeplate',
+    storageBucket: 'saveeplate.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyBkc2c3h1FhmgOJ19aEp9mTBGCGgpaSQ9I',
-    appId: '1:443285938782:ios:5b8b533b40d6ea4929cacf',
-    messagingSenderId: '443285938782',
-    projectId: 'save-plate',
-    storageBucket: 'save-plate.firebasestorage.app',
+    apiKey: 'AIzaSyBhZgISxPIbJODjjL13WvYnR8qIggTbeVc',
+    appId: '1:627571054534:ios:1e6341b6ad50bd7f18c4c7',
+    messagingSenderId: '627571054534',
+    projectId: 'saveeplate',
+    storageBucket: 'saveeplate.firebasestorage.app',
     iosBundleId: 'com.example.saveplate',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyBkc2c3h1FhmgOJ19aEp9mTBGCGgpaSQ9I',
-    appId: '1:443285938782:ios:5b8b533b40d6ea4929cacf',
-    messagingSenderId: '443285938782',
-    projectId: 'save-plate',
-    storageBucket: 'save-plate.firebasestorage.app',
+    apiKey: 'AIzaSyBhZgISxPIbJODjjL13WvYnR8qIggTbeVc',
+    appId: '1:627571054534:ios:1e6341b6ad50bd7f18c4c7',
+    messagingSenderId: '627571054534',
+    projectId: 'saveeplate',
+    storageBucket: 'saveeplate.firebasestorage.app',
     iosBundleId: 'com.example.saveplate',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyDyc6KXt-ky8zAlG3hQ9ObTHwpoMIgeyJE',
-    appId: '1:443285938782:web:2c08637045fdce1f29cacf',
-    messagingSenderId: '443285938782',
-    projectId: 'save-plate',
-    authDomain: 'save-plate.firebaseapp.com',
-    storageBucket: 'save-plate.firebasestorage.app',
-    measurementId: 'G-FDWC6S6QNV',
+    apiKey: 'AIzaSyDIyrEuCFt8b2gO1STNIp9MNgNatUmu4RQ',
+    appId: '1:627571054534:web:7847baba7a9775d918c4c7',
+    messagingSenderId: '627571054534',
+    projectId: 'saveeplate',
+    authDomain: 'saveeplate.firebaseapp.com',
+    storageBucket: 'saveeplate.firebasestorage.app',
+    measurementId: 'G-18Q3E97TT8',
   );
 
 }
