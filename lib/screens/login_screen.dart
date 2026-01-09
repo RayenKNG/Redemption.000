@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'dart:ui';
+import 'home_screen.dart'; // Pastikan ini yang di-import
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -109,7 +110,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                 elevation: 5, // Ada bayangannya dikit
                               ),
                               onPressed: () {
-                                // Nanti kita isi logika login di sini
+                                // Perintah Pindah Halaman ke Home
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const HomeScreen(),
+                                  ),
+                                );
                               },
                               child: const Text(
                                 "LOGIN",
