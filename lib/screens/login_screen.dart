@@ -58,8 +58,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Text(
+                        // 1. HAPUS 'const' DI SINI 👇
+                        children: [
+                          const Text(
+                            // 2. PINDAHIN 'const' KE SINI
                             "SavePlate",
                             style: TextStyle(
                               fontSize: 28,
@@ -69,9 +71,10 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
 
-                          SizedBox(height: 10),
+                          const SizedBox(height: 10), // Tambahin const di sini
 
-                          Text(
+                          const Text(
+                            // Tambahin const di sini
                             "Selamatkan makanan, selamatkan bumi.",
                             textAlign: TextAlign.center,
                             style: TextStyle(
@@ -80,7 +83,11 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
 
-                          SizedBox(height: 30),
+                          const SizedBox(height: 30), // Tambahin const di sini
+                          // Panggil fungsi input buat Email (INI YANG BIKIN GAK BOLEH PAKE CONST DI ATAS)
+                          _buildGlassInput(Icons.email_outlined, "Email"),
+
+                          const SizedBox(height: 20),
                         ],
                       ),
                     ),
@@ -94,7 +101,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // Fungsi Pembantu buat bikin Input Kaca
+  // Taruh ini di paling bawah, SEBELUM kurung tutup '}' terakhir class State
   Widget _buildGlassInput(
     IconData icon,
     String hint, {
@@ -107,15 +114,15 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       child: TextField(
         obscureText: isPassword,
-        style: const TextStyle(color: Colors.white), // Warna teks ketikan
+        style: const TextStyle(color: Colors.white),
         decoration: InputDecoration(
           prefixIcon: Icon(icon, color: Colors.white70),
           hintText: hint,
           hintStyle: const TextStyle(color: Colors.white54),
-          border: InputBorder.none, // Hilangkan garis bawah standar
+          border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(vertical: 15),
         ),
       ),
     );
   }
-}
+} // <--- Pastikan kode di atas ada di DALAM kurung tutup ini
