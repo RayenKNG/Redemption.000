@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-import 'home_screen.dart'; 
+import 'map_hunter_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -75,46 +75,58 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   // TOMBOL LOGIN
                   ElevatedButton(
-                    onPressed: _isLoading ? null : () async {
-                      final email = _emailController.text.trim();
-                      final password = _passwordController.text.trim();
+                    onPressed: _isLoading
+                        ? null
+                        : () async {
+                            final email = _emailController.text.trim();
+                            final password = _passwordController.text.trim();
 
-                      if (email.isEmpty || password.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("Email dan Password harus diisi!")),
-                        );
-                        return;
-                      }
+                            if (email.isEmpty || password.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    "Email dan Password harus diisi!",
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
 
-                      setState(() {
-                        _isLoading = true;
-                      });
+                            setState(() {
+                              _isLoading = true;
+                            });
 
-                      try {
-                        await AuthService().login(email: email, password: password);
-                        if (context.mounted) {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(builder: (context) => const HomeScreen()),
-                          );
-                        }
-                      } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text("Gagal Login: $e"),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
-                      } finally {
-                        if (mounted) {
-                          setState(() {
-                            _isLoading = false;
-                          });
-                        }
-                      }
-                    },
+                            try {
+                              await AuthService().login(
+                                email: email,
+                                password: password,
+                              );
+                              if (context.mounted) {
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const MapHunterScreen(),
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text("Gagal Login: $e"),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            } finally {
+                              if (mounted) {
+                                setState(() {
+                                  _isLoading = false;
+                                });
+                              }
+                            }
+                          },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
@@ -123,13 +135,22 @@ class _LoginScreenState extends State<LoginScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: _isLoading 
+                    child: _isLoading
                         ? const SizedBox(
-                            height: 20, 
-                            width: 20, 
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
-                          ) 
-                        : const Text("LOGIN", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            "LOGIN",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
 
                   const SizedBox(height: 16),
@@ -144,7 +165,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           // ARANGKAT KE HALAMAN REGISTER
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => RegisterScreen()),
+                            MaterialPageRoute(
+                              builder: (context) => RegisterScreen(),
+                            ),
                           );
                         },
                         child: const Text("Daftar Sekarang"),

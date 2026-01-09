@@ -3,7 +3,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'screens/login_screen.dart';
 import 'firebase_options.dart';
-import 'screens/home_screen.dart'; // Panggil halaman home tadi
+import 'screens/map_hunter_screen.dart'; // Panggil halaman home tadi'
+import 'screens/main_navigator_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,7 +27,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.green,
         useMaterial3: true,
       ),
-      home: const LoginScreen(), // <-- Ini dia pintu masuknya
+      home: const MainNavigatorScreen(), // <-- Ini dia pintu masuknya
     );
   }
 }
