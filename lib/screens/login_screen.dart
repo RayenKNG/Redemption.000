@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'home_screen.dart'; 
+import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -140,8 +141,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       const Text("Belum punya akun?"),
                       TextButton(
                         onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Halaman Daftar belum dibuat!")),
+                          // ARANGKAT KE HALAMAN REGISTER
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => RegisterScreen()),
                           );
                         },
                         child: const Text("Daftar Sekarang"),

@@ -1,32 +1,13 @@
 {
   "project_info": {
-    "project_number": "443285938782",
-    "project_id": "save-plate",
-    "storage_bucket": "save-plate.firebasestorage.app"
+    "project_number": "627571054534",
+    "project_id": "saveeplate",
+    "storage_bucket": "saveeplate.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:443285938782:android:3032ee48880cb61e29cacf",
-        "android_client_info": {
-          "package_name": "com.example.loginflutter"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyCLePPbGaBW5vyDkSFpSWjEYzdLCV8rVMo"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:443285938782:android:6629094fdf5f770e29cacf",
+        "mobilesdk_app_id": "1:627571054534:android:d83712a5e72cffd718c4c7",
         "android_client_info": {
           "package_name": "com.example.saveplate"
         }
@@ -34,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCLePPbGaBW5vyDkSFpSWjEYzdLCV8rVMo"
+          "current_key": "AIzaSyAbtas3gdyi3mn_wNpk9HQietnVOUxtwv4"
         }
       ],
       "services": {
@@ -45,15 +26,15 @@
     },
     {
       "client_info": {
-        "mobilesdk_app_id": "1:443285938782:android:d5db018e27e244e729cacf",
+        "mobilesdk_app_id": "1:627571054534:android:504b6e1a2612901618c4c7",
         "android_client_info": {
-          "package_name": "savePlate.company.app"
+          "package_name": "saveplate.com"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCLePPbGaBW5vyDkSFpSWjEYzdLCV8rVMo"
+          "current_key": "AIzaSyAbtas3gdyi3mn_wNpk9HQietnVOUxtwv4"
         }
       ],
       "services": {

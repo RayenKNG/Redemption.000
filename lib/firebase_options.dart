@@ -85,4 +85,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'save-plate.firebasestorage.app',
     measurementId: 'G-FDWC6S6QNV',
   );
+
 }
