@@ -24,9 +24,21 @@ class _LoginScreenState extends State<LoginScreen> {
             colors: [Color(0xFFE8F5E9), Color(0xFF2ECC71)],
           ),
         ),
-
-        child: Stack(children: [
-
+        child: Stack(
+          children: [
+            // Lingkaran Dekorasi 1 (Pojok Kiri Atas - agak keluar layar)
+            Positioned(
+              top: -50,
+              left: -50,
+              child: Container(
+                width: 200,
+                height: 200,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.3), // Putih transparan
+                ),
+              ),
+            ),
           ],
         ),
       ),
