@@ -38,6 +38,17 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ),
+
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 30),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(30),
+
+                  child: Container(height: 400, width: double.infinity),
+                ),
+              ),
+            ),
           ],
         ),
       ),
