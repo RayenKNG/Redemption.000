@@ -81,6 +81,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
 
                           const SizedBox(height: 30),
+
                           _buildGlassInput(Icons.email_outlined, "Email"),
 
                           const SizedBox(height: 20),
@@ -90,7 +91,35 @@ class _LoginScreenState extends State<LoginScreen> {
                             "Password",
                             isPassword: true,
                           ),
-
+                          // Tombol Login
+                          SizedBox(
+                            width: double
+                                .infinity, // Lebar tombol mentok kiri-kanan
+                            height: 50,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor:
+                                    Colors.white, // Tombol warna Putih
+                                foregroundColor: const Color(
+                                  0xFF2ECC71,
+                                ), // Teks warna Hijau
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(15),
+                                ),
+                                elevation: 5, // Ada bayangannya dikit
+                              ),
+                              onPressed: () {
+                                // Nanti kita isi logika login di sini
+                              },
+                              child: const Text(
+                                "LOGIN",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                          ),
                           const SizedBox(height: 30),
                         ],
                       ),
