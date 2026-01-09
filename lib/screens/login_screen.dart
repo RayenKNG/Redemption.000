@@ -17,20 +17,16 @@ class _LoginScreenState extends State<LoginScreen> {
         width: double.infinity,
         height: double.infinity,
         decoration: const BoxDecoration(
-          // Langkah 1: Gradasi warna Hijau SavePlate
+          // Gradasi Hijau SavePlate
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Color(0xFFE8F5E9), // Hijau sangat muda (atas kiri)
-              Color(0xFF2ECC71), // Hijau Emerald (bawah kanan)
-            ],
+            colors: [Color(0xFFE8F5E9), Color(0xFF2ECC71)],
           ),
         ),
-        // Kita siapin Stack buat numpuk elemen kaca nanti
-        child: Stack(
-          children: [
-            // Kosong dulu, nanti kita isi dekorasi & form login
+
+        child: Stack(children: [
+
           ],
         ),
       ),
