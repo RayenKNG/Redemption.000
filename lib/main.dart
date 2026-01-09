@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:google_fonts/google_fonts.dart'; // Biar font-nya modern
-import 'screens/home_screen.dart'; // Panggil halaman home tadi
+import 'package:google_fonts/google_fonts.dart';
 import 'screens/login_screen.dart';
+import 'firebase_options.dart';
+import 'screens/home_screen.dart'; // Panggil halaman home tadi
 
 void main() async {
-  // WidgetsFlutterBinding.ensureInitialized();  <-- KASIH GARIS MIRING (//)
+  WidgetsFlutterBinding.ensureInitialized();
 
-  // Matikan dulu baris ini biar aplikasi mau jalan walau tanpa database
-  // await Firebase.initializeApp();             <-- KASIH GARIS MIRING (//)
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   runApp(const MyApp());
 }
@@ -19,10 +19,9 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false, // Hilangkan label 'Debug' di pojok
+      debugShowCheckedModeBanner: false,
       title: 'SaveBite',
       theme: ThemeData(
-        // Kita pakai font 'Poppins' biar kayak startup kekinian
         textTheme: GoogleFonts.poppinsTextTheme(),
         primarySwatch: Colors.green,
         useMaterial3: true,

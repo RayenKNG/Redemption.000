@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "627571054534",
+    "project_id": "saveeplate",
+    "storage_bucket": "saveeplate.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:627571054534:android:d83712a5e72cffd718c4c7",
+        "android_client_info": {
+          "package_name": "com.example.saveplate"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAbtas3gdyi3mn_wNpk9HQietnVOUxtwv4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:627571054534:android:504b6e1a2612901618c4c7",
+        "android_client_info": {
+          "package_name": "saveplate.com"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAbtas3gdyi3mn_wNpk9HQietnVOUxtwv4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
