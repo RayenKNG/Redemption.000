@@ -151,7 +151,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                                 context,
                                                 MaterialPageRoute(
                                                   builder: (context) =>
-                                                      const MerchantHomeScreen(),
+                                                      const MerchantMainScreen(),
                                                 ),
                                               );
                                             } else {
