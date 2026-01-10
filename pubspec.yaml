@@ -10,6 +10,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  google_maps_flutter: ^2.5.3
+  location: ^6.0.2
 
  # --- FIREBASE (VERSI BARU YANG LEBIH STABIL) ---
   firebase_core: ^2.27.0

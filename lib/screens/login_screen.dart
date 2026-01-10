@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
-import '../services/auth_service.dart';
+import 'package:saveplate/screens/main_navigator_screen.dart';
 import 'dart:ui';
 import 'home_screen.dart';
 import 'register_screen.dart';
+import '../services/auth_service.dart';
+import 'merchant_home_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,6 +15,14 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  // 👇 INI YANG BARU: Penampung Email & Password
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  // Panggil Service yang lu kasih tadi
+  final AuthService _authService = AuthService();
+  bool _isLoading = false; // Buat loading muter-muter
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -93,39 +104,91 @@ class _LoginScreenState extends State<LoginScreen> {
                             "Password",
                             isPassword: true,
                           ),
-                          // Tombol Login
+                          // 👇 Kodingan Tombol Login (Full Version)
                           SizedBox(
-                            width: double
-                                .infinity, // Lebar tombol mentok kiri-kanan
+                            width: double.infinity,
                             height: 50,
                             child: ElevatedButton(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor:
-                                    Colors.white, // Tombol warna Putih
-                                foregroundColor: const Color(
-                                  0xFF2ECC71,
-                                ), // Teks warna Hijau
+                                backgroundColor: Colors.white,
+                                foregroundColor: const Color(0xFF2ECC71),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(15),
                                 ),
-                                elevation: 5, // Ada bayangannya dikit
+                                elevation: 5,
                               ),
-                              onPressed: () {
-                                // Perintah Pindah Halaman ke Home
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const HomeScreen(),
-                                  ),
-                                );
-                              },
-                              child: const Text(
-                                "LOGIN",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
+
+                              // 👇 1. INI LOGIKA LOGIN PINTAR
+                              onPressed: _isLoading
+                                  ? null
+                                  : () async {
+                                      setState(() => _isLoading = true);
+
+                                      try {
+                                        // A. Login dulu ke Firebase Auth
+                                        User? user = await _authService.login(
+                                          email: _emailController.text,
+                                          password: _passwordController.text,
+                                        );
+
+                                        if (user != null) {
+                                          // B. Kalau Login Sukses, CEK ROLE-NYA!
+                                          String role = await _authService
+                                              .getUserRole(user.uid);
+
+                                          if (mounted) {
+                                            if (role == 'merchant') {
+                                              // ➡️ Kalau Merchant, lempar ke Toko
+                                              Navigator.pushReplacement(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      const MerchantHomeScreen(),
+                                                ),
+                                              );
+                                            } else {
+                                              // ➡️ Kalau User Biasa (atau data kosong), lempar ke Home Hunter
+                                              Navigator.pushReplacement(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      const MainNavigatorScreen(),
+                                                ),
+                                              );
+                                            }
+                                          }
+                                        }
+                                      } catch (e) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(e.toString()),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      } finally {
+                                        if (mounted)
+                                          setState(() => _isLoading = false);
+                                      }
+                                    },
+                              // 👇 2. INI TAMPILANNYA (Loading Muter / Teks LOGIN)
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        color: Color(0xFF2ECC71),
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Text(
+                                      "LOGIN",
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
                             ),
                           ),
                           const SizedBox(height: 30),
