@@ -4,7 +4,7 @@ class ProductModel {
   final int price;
   final int stock;
   final bool isActive;
-  final String? imageUrl; // ✅ Ada URL Gambar
+  final String? imageUrl; // Opsional buat gambar
 
   ProductModel({
     required this.id,
