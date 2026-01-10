@@ -1,38 +1,48 @@
 class ProductModel {
-  final String id;
+  final String? id; // Supabase ID (bisa null pas create)
+  final String merchantId;
   final String name;
-  final int price;
+  final int originalPrice; // Harga Asli (Coret)
+  final int price; // Harga Jual (Diskon)
   final int stock;
   final bool isActive;
-  final String? imageUrl; // Opsional buat gambar
+  final String? imageUrl;
 
   ProductModel({
-    required this.id,
+    this.id,
+    required this.merchantId,
     required this.name,
+    required this.originalPrice,
     required this.price,
     required this.stock,
     required this.isActive,
     this.imageUrl,
   });
 
-  factory ProductModel.fromMap(Map<String, dynamic> data, String documentId) {
+  // Convert dari JSON Supabase (snake_case) ke Dart
+  factory ProductModel.fromMap(Map<String, dynamic> map) {
     return ProductModel(
-      id: documentId,
-      name: data['name'] ?? 'Tanpa Nama',
-      price: data['price'] ?? 0,
-      stock: data['stock'] ?? 0,
-      isActive: data['isActive'] ?? true,
-      imageUrl: data['imageUrl'],
+      id: map['id'].toString(),
+      merchantId: map['merchant_id'] ?? '',
+      name: map['name'] ?? '',
+      originalPrice: map['original_price'] ?? 0,
+      price: map['price'] ?? 0,
+      stock: map['stock'] ?? 0,
+      isActive: map['is_active'] ?? true,
+      imageUrl: map['image_url'],
     );
   }
 
+  // Convert ke JSON Supabase
   Map<String, dynamic> toMap() {
     return {
+      'merchant_id': merchantId,
       'name': name,
+      'original_price': originalPrice,
       'price': price,
       'stock': stock,
-      'isActive': isActive,
-      'imageUrl': imageUrl,
+      'is_active': isActive,
+      'image_url': imageUrl,
     };
   }
 }
