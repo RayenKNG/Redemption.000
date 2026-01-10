@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:ui'; // Buat sedikit efek blur di navbar
+import 'package:saveplate/screens/add_product_screen.dart';
 
 // --- KONFIGURASI WARNA (Clean & Professional Orange) ---
 const Color kPrimaryColor = Color(0xFFFF6D00); // Orange Utama
@@ -488,18 +489,16 @@ class MenuTab extends StatelessWidget {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: kPrimaryColor,
-        icon: const Icon(Icons.add),
-        label: const Text("Tambah Menu"),
-        onPressed: () {},
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(15),
-        children: [
-          _buildMenuTile("Donat Coklat Sisa", "Rp 5.000", 12, true),
-          _buildMenuTile("Roti Tawar Malam", "Rp 12.000", 5, true),
-          _buildMenuTile("Cake Potong", "Rp 8.000", 0, false), // Habis
-        ],
+        backgroundColor: kPrimaryColor, // Pastikan variabel warna ini sudah ada
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text("Tambah Menu", style: TextStyle(color: Colors.white)),
+        onPressed: () {
+          // INI LOGIC PINDAH HALAMANNYA
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AddProductScreen()),
+          );
+        },
       ),
     );
   }
