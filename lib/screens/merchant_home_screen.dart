@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dart:ui'; // Buat sedikit efek blur di navbar
+import 'package:saveplate/screens/add_product_screen.dart'; // ✅ INI SUDAH BENAR SEKARANG
 
 // --- KONFIGURASI WARNA (Clean & Professional Orange) ---
 const Color kPrimaryColor = Color(0xFFFF6D00); // Orange Utama
@@ -104,9 +104,10 @@ class _DashboardTabState extends State<DashboardTab> {
           children: [
             const CircleAvatar(
               backgroundColor: Colors.grey,
-              backgroundImage: NetworkImage(
-                "https://via.placeholder.com/150",
-              ), // Foto Toko
+              child: Icon(
+                Icons.store,
+                color: Colors.white,
+              ), // Ganti sementara biar gak error network
             ),
             const SizedBox(width: 10),
             Column(
@@ -237,7 +238,7 @@ class _DashboardTabState extends State<DashboardTab> {
             ),
 
             const SizedBox(height: 25),
-            const Text(
+            Text(
               "Ringkasan Cepat",
               style: TextStyle(
                 fontWeight: FontWeight.bold,
@@ -318,7 +319,7 @@ class OrdersTab extends StatelessWidget {
         backgroundColor: kBgColor,
         appBar: AppBar(
           backgroundColor: Colors.white,
-          title: const Text(
+          title: Text(
             "Daftar Pesanan",
             style: TextStyle(color: kTextDark, fontWeight: FontWeight.bold),
           ),
@@ -455,7 +456,7 @@ class OrdersTab extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(name, style: const TextStyle(color: kTextDark)),
+          Text(name, style: TextStyle(color: kTextDark)),
           Text(price, style: const TextStyle(color: Colors.grey)),
         ],
       ),
@@ -475,7 +476,7 @@ class MenuTab extends StatelessWidget {
       backgroundColor: kBgColor,
       appBar: AppBar(
         backgroundColor: Colors.white,
-        title: const Text(
+        title: Text(
           "Atur Menu",
           style: TextStyle(color: kTextDark, fontWeight: FontWeight.bold),
         ),
@@ -489,16 +490,22 @@ class MenuTab extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: kPrimaryColor,
-        icon: const Icon(Icons.add),
-        label: const Text("Tambah Menu"),
-        onPressed: () {},
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text("Tambah Menu", style: TextStyle(color: Colors.white)),
+        onPressed: () {
+          // ✅ SUDAH BENAR & NYAMBUNG KE FILE DI ATAS
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AddProductScreen()),
+          );
+        },
       ),
       body: ListView(
-        padding: const EdgeInsets.all(15),
+        padding: const EdgeInsets.all(20),
         children: [
-          _buildMenuTile("Donat Coklat Sisa", "Rp 5.000", 12, true),
-          _buildMenuTile("Roti Tawar Malam", "Rp 12.000", 5, true),
-          _buildMenuTile("Cake Potong", "Rp 8.000", 0, false), // Habis
+          _buildMenuTile("Donat Coklat Sisa", "Rp 5.000", 5, true),
+          _buildMenuTile("Roti Tawar Malam", "Rp 12.000", 2, true),
+          _buildMenuTile("Cake Potong", "Rp 8.000", 0, false),
         ],
       ),
     );
@@ -578,7 +585,7 @@ class WalletTab extends StatelessWidget {
       backgroundColor: kBgColor,
       appBar: AppBar(
         backgroundColor: Colors.white,
-        title: const Text(
+        title: Text(
           "Dompet Toko",
           style: TextStyle(color: kTextDark, fontWeight: FontWeight.bold),
         ),
@@ -684,7 +691,8 @@ class ProfileTab extends StatelessWidget {
           children: [
             const CircleAvatar(
               radius: 50,
-              backgroundImage: NetworkImage("https://via.placeholder.com/150"),
+              backgroundColor: Colors.grey,
+              child: Icon(Icons.store, size: 50, color: Colors.white),
             ),
             const SizedBox(height: 15),
             const Text(

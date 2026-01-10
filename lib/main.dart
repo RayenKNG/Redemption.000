@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'firebase_options.dart';
-
-// Import Screen
-// Pastikan file "merchant_home_screen.dart" isinya kode FULL yang gua kasih sebelumnya ya!
 import 'package:saveplate/screens/merchant_home_screen.dart';
 import 'package:saveplate/screens/login_screen.dart';
 import 'package:saveplate/screens/register_screen.dart';
@@ -33,7 +30,7 @@ class MyApp extends StatelessWidget {
       // --- PERBAIKAN DISINI ---
       // Kita set home langsung ke MerchantMainScreen()
       // supaya error merah hilang dan langsung masuk ke Dashboard baru.
-      home: const MerchantMainScreen(),
+      home: const LoginScreen(),
 
       routes: {
         '/login': (context) => const LoginScreen(),
