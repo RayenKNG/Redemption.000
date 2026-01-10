@@ -115,7 +115,7 @@ class _MapHunterScreenState extends State<MapHunterScreen> {
             // Kalau stok habis warnanya beda
             icon: BitmapDescriptor.defaultMarkerWithHue(
               store['stock'] == "Habis"
-                  ? BitmapDescriptor.hueGrey
+                  ? BitmapDescriptor.hueRed
                   : BitmapDescriptor.hueGreen,
             ),
             onTap: () {
@@ -197,7 +197,7 @@ class _MapHunterScreenState extends State<MapHunterScreen> {
                           store['price'],
                           style: const TextStyle(
                             fontSize: 16,
-                            color(0xFF2ECC71),
+                            color: Color(0xFF2ECC71),
                             fontWeight: FontWeight.bold,
                           ),
                         ),
