@@ -19,12 +19,13 @@ class AuthService {
   }
 
   // 2. Fungsi Register (Daftar Baru) -> INI YANG BARU KITA TAMBAH
-  Future<User?> register({required String email, required String password}) async {
+  Future<User?> register({
+    required String email,
+    required String password,
+  }) async {
     try {
-      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      UserCredential userCredential = await _auth
+          .createUserWithEmailAndPassword(email: email, password: password);
       return userCredential.user;
     } on FirebaseAuthException catch (e) {
       throw e.message ?? "Gagal mendaftar";
