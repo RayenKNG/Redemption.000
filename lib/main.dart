@@ -5,11 +5,18 @@ import 'firebase_options.dart';
 import 'package:saveplate/screens/merchant_home_screen.dart';
 import 'package:saveplate/screens/login_screen.dart';
 import 'package:saveplate/screens/register_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const MyApp());
+
+  await Supabase.initialize(
+    url: 'https://ntdrrnrhgwnjvznbodno.supabase.co',
+    anonKey:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50ZHJybnJoZ3duanZ6bmJvZG5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgwNTQ0MDYsImV4cCI6MjA4MzYzMDQwNn0.-zkqv8PshNRTFLZVhxaUyTIxTb7bzHoO8gxrMdF1uVc',
+  );
 }
 
 class MyApp extends StatelessWidget {
