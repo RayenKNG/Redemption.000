@@ -17,9 +17,9 @@ dependencies:
   google_maps_flutter: ^2.5.3
 
   # 👇 GANTI JADI ANGKA INI (WAJIB!!):
-  firebase_core: ^2.27.0
+  firebase_core: ^2.32.0
   firebase_auth: ^4.17.8
-  cloud_firestore: ^4.15.8
+  cloud_firestore: ^4.17.5
 
   # --- PENGATUR DATA ---
   provider: ^6.0.0
@@ -29,6 +29,8 @@ dependencies:
   google_fonts: ^6.1.0       # Versi aman
   intl: ^0.19.0              # Versi aman
   cached_network_image: ^3.3.0
+  firebase_storage: ^11.7.7
+  image_picker: ^1.2.1
 
 dev_dependencies:
   flutter_test:
