@@ -1,11 +1,10 @@
-// lib/models/product_model.dart
-
 class ProductModel {
   final String id;
   final String name;
   final int price;
   final int stock;
   final bool isActive;
+  final String? imageUrl; // ✅ Ada URL Gambar
 
   ProductModel({
     required this.id,
@@ -13,9 +12,9 @@ class ProductModel {
     required this.price,
     required this.stock,
     required this.isActive,
+    this.imageUrl,
   });
 
-  // Dari Firebase (Map) ke Objek Dart
   factory ProductModel.fromMap(Map<String, dynamic> data, String documentId) {
     return ProductModel(
       id: documentId,
@@ -23,11 +22,17 @@ class ProductModel {
       price: data['price'] ?? 0,
       stock: data['stock'] ?? 0,
       isActive: data['isActive'] ?? true,
+      imageUrl: data['imageUrl'],
     );
   }
 
-  // Dari Objek Dart ke Firebase (Map)
   Map<String, dynamic> toMap() {
-    return {'name': name, 'price': price, 'stock': stock, 'isActive': isActive};
+    return {
+      'name': name,
+      'price': price,
+      'stock': stock,
+      'isActive': isActive,
+      'imageUrl': imageUrl,
+    };
   }
 }
