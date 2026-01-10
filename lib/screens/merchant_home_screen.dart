@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'login_screen.dart'; // Buat logout nanti
+import 'package:firebase_auth/firebase_auth.dart';
+import '../services/auth_service.dart';
+import 'login_screen.dart';
 
 class MerchantHomeScreen extends StatefulWidget {
   const MerchantHomeScreen({super.key});
@@ -9,280 +11,187 @@ class MerchantHomeScreen extends StatefulWidget {
 }
 
 class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
-  bool _isShopOpen = true; // Status Toko (Buka/Tutup)
+  final AuthService _authService = AuthService();
+
+  // 👇 Data Dummy dulu buat nge-test tampilan (Nanti kita ganti pake Firebase)
+  final List<Map<String, dynamic>> _dummyProducts = [
+    {
+      "name": "Nasi Goreng Spesial",
+      "price": 15000,
+      "stock": 5,
+      "image": "https://via.placeholder.com/150", // Gambar contoh
+    },
+    {
+      "name": "Ayam Bakar Madu",
+      "price": 20000,
+      "stock": 2,
+      "image": "https://via.placeholder.com/150",
+    },
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(
         0xFFF5F5F5,
-      ), // Background abu muda biar konten nonjol
-      // --- APP BAR ---
+      ), // Abu-abu muda biar konten nonjol
+      // 1. APP BAR (Bagian Atas)
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Halo, Mitra!",
-              style: TextStyle(color: Colors.grey, fontSize: 14),
-            ),
-            Text(
-              "Toko Roti Makmur", // Nama Toko Mockup
-              style: TextStyle(
-                color: Colors.black,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-          ],
+        title: const Text(
+          "Dashboard Toko",
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
+        backgroundColor: const Color(0xFF2ECC71), // Hijau SavePlate
         actions: [
-          // Tombol Logout Kecil
+          // Tombol Logout
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.red),
-            onPressed: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const LoginScreen()),
-              );
+            icon: const Icon(Icons.logout, color: Colors.white),
+            onPressed: () async {
+              await _authService.logout();
+              if (mounted) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                );
+              }
             },
           ),
         ],
       ),
 
-      // --- BODY ---
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+      // 2. BODY (Isi Konten)
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. STATUS TOKO (Card Hijau)
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: _isShopOpen
-                    ? const Color(0xFF2ECC71)
-                    : Colors.grey, // Hijau kalau buka
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: _isShopOpen
-                        ? const Color(0xFF2ECC71).withOpacity(0.4)
-                        : Colors.grey.withOpacity(0.4),
-                    blurRadius: 10,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _isShopOpen ? "TOKO BUKA" : "TOKO TUTUP",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      Text(
-                        _isShopOpen
-                            ? "Pembeli bisa melihat menu kamu"
-                            : "Kamu sedang istirahat",
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Switch(
-                    value: _isShopOpen,
-                    activeColor: Colors.white,
-                    activeTrackColor: Colors.green[800],
-                    onChanged: (val) {
-                      setState(() => _isShopOpen = val);
-                    },
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 25),
-
-            // 2. RINGKASAN HARI INI (Grid)
             const Text(
-              "Ringkasan Hari Ini",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              "Menu Makanan Kamu",
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
             ),
-            const SizedBox(height: 15),
-            Row(
-              children: [
-                _buildStatCard(
-                  "Pesanan",
-                  "12",
-                  Icons.receipt_long,
-                  Colors.orange,
-                ),
-                const SizedBox(width: 15),
-                _buildStatCard(
-                  "Pendapatan",
-                  "Rp 250rb",
-                  Icons.monetization_on,
-                  Colors.blue,
-                ),
-              ],
+            const SizedBox(height: 16),
+
+            // Grid buat nampilin makanan
+            Expanded(
+              child: _dummyProducts.isEmpty
+                  ? _buildEmptyState() // Tampilan kalau kosong
+                  : GridView.builder(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2, // 2 Kolom ke samping
+                            childAspectRatio:
+                                0.75, // Perbandingan lebar:tinggi kartu
+                            crossAxisSpacing: 16,
+                            mainAxisSpacing: 16,
+                          ),
+                      itemCount: _dummyProducts.length,
+                      itemBuilder: (context, index) {
+                        final product = _dummyProducts[index];
+                        return _buildProductCard(product);
+                      },
+                    ),
             ),
-
-            const SizedBox(height: 25),
-
-            // 3. DAFTAR MAKANAN (List)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  "Menu Penyelamatan",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                ),
-                TextButton(onPressed: () {}, child: const Text("Lihat Semua")),
-              ],
-            ),
-
-            // Dummy Item 1
-            _buildFoodItem("Paket Roti Sisa", "Sisa 3", "Rp 15.000", true),
-            // Dummy Item 2
-            _buildFoodItem("Donat Kemarin", "Habis", "Rp 10.000", false),
-            // Dummy Item 3
-            _buildFoodItem("Nasi Goreng Malam", "Sisa 5", "Rp 12.000", true),
           ],
         ),
       ),
 
-      // --- TOMBOL TAMBAH MENU (FAB) ---
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          // Nanti ke halaman tambah menu
-        },
+      // 3. FLOATING ACTION BUTTON (Tombol Tambah)
+      floatingActionButton: FloatingActionButton(
         backgroundColor: const Color(0xFF2ECC71),
-        icon: const Icon(Icons.add),
-        label: const Text("Tambah Menu"),
+        onPressed: () {
+          // Nanti kita arahin ke halaman tambah produk di sini
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Fitur Tambah Produk Coming Soon!")),
+          );
+        },
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
 
-  // Widget Kecil buat Kotak Statistik
-  Widget _buildStatCard(
-    String title,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color, size: 30),
-            const SizedBox(height: 10),
-            Text(
-              value,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
-            ),
-            Text(title, style: const TextStyle(color: Colors.grey)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Widget Kecil buat List Makanan
-  Widget _buildFoodItem(
-    String name,
-    String stock,
-    String price,
-    bool isActive,
-  ) {
+  // 👇 Widget Kecil: Tampilan Kartu Produk
+  Widget _buildProductCard(Map<String, dynamic> product) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 15),
-      padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(
-          color: isActive ? Colors.transparent : Colors.grey.shade300,
-        ),
-      ),
-      child: Row(
-        children: [
-          // Gambar Dummy (Kotak Abu)
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: Colors.grey[200],
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(Icons.fastfood, color: Colors.grey[400]),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
           ),
-          const SizedBox(width: 15),
-          // Info Text
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Gambar Produk
           Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(15),
+                ),
+                image: DecorationImage(
+                  image: NetworkImage(product['image']),
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+          ),
+          // Info Produk
+          Padding(
+            padding: const EdgeInsets.all(12.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  name,
-                  style: TextStyle(
+                  product['name'],
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
-                    color: isActive ? Colors.black : Colors.grey,
                   ),
                 ),
+                const SizedBox(height: 4),
                 Text(
-                  price,
+                  "Rp ${product['price']}",
                   style: const TextStyle(
                     color: Color(0xFF2ECC71),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+                const SizedBox(height: 4),
+                Text(
+                  "Stok: ${product['stock']}",
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                ),
               ],
             ),
           ),
-          // Status Stock
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: isActive
-                  ? const Color(0xFF2ECC71).withOpacity(0.1)
-                  : Colors.red.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              stock,
-              style: TextStyle(
-                color: isActive ? const Color(0xFF2ECC71) : Colors.red,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
-            ),
+        ],
+      ),
+    );
+  }
+
+  // 👇 Widget Kecil: Tampilan Kalau Kosong
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.fastfood_outlined, size: 80, color: Colors.grey[300]),
+          const SizedBox(height: 16),
+          Text(
+            "Belum ada makanan dijual.",
+            style: TextStyle(color: Colors.grey[500]),
           ),
         ],
       ),
