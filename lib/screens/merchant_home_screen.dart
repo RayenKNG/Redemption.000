@@ -177,8 +177,7 @@ class MenuTab extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.fastfood_off, size: 80, color: Colors.grey[300]),
-                  const SizedBox(height: 10),
+                  Icon(Icons.no_food, size: 80, color: Colors.grey[300]),
                   Text(
                     "Belum ada menu, tambah dulu yuk!",
                     style: TextStyle(color: Colors.grey[500]),
