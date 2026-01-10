@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
-import '../services/auth_service.dart';
+import 'package:saveplate/screens/main_navigator_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:ui';
-import 'home_screen.dart';
 import 'register_screen.dart';
+import '../services/auth_service.dart';
+import 'merchant_home_screen.dart';
+// import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,6 +15,21 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  // 👇 Penampung Email & Password
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  final AuthService _authService = AuthService();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    // Biasakan dispose controller biar ga memory leak
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -39,13 +57,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ),
-
             Center(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 30),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(30),
-
                   child: BackdropFilter(
                     filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
                     child: Container(
@@ -60,7 +76,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
-
                         children: [
                           const Text(
                             "SavePlate",
@@ -71,7 +86,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               letterSpacing: 2,
                             ),
                           ),
-
                           const SizedBox(height: 10),
                           const Text(
                             "Selamatkan makanan, selamatkan bumi.",
@@ -81,58 +95,111 @@ class _LoginScreenState extends State<LoginScreen> {
                               fontSize: 14,
                             ),
                           ),
-
                           const SizedBox(height: 30),
 
-                          _buildGlassInput(Icons.email_outlined, "Email"),
+                          // 👇 SUDAH DIPERBAIKI: Masukin _emailController
+                          _buildGlassInput(
+                            Icons.email_outlined,
+                            "Email",
+                            _emailController,
+                          ),
 
                           const SizedBox(height: 20),
 
+                          // 👇 SUDAH DIPERBAIKI: Masukin _passwordController
                           _buildGlassInput(
                             Icons.lock_outline,
                             "Password",
+                            _passwordController,
                             isPassword: true,
                           ),
+
+                          const SizedBox(height: 30),
+
                           // Tombol Login
                           SizedBox(
-                            width: double
-                                .infinity, // Lebar tombol mentok kiri-kanan
+                            width: double.infinity,
                             height: 50,
                             child: ElevatedButton(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor:
-                                    Colors.white, // Tombol warna Putih
-                                foregroundColor: const Color(
-                                  0xFF2ECC71,
-                                ), // Teks warna Hijau
+                                backgroundColor: Colors.white,
+                                foregroundColor: const Color(0xFF2ECC71),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(15),
                                 ),
-                                elevation: 5, // Ada bayangannya dikit
+                                elevation: 5,
                               ),
-                              onPressed: () {
-                                // Perintah Pindah Halaman ke Home
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const HomeScreen(),
-                                  ),
-                                );
-                              },
-                              child: const Text(
-                                "LOGIN",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
+                              onPressed: _isLoading
+                                  ? null
+                                  : () async {
+                                      setState(() => _isLoading = true);
+
+                                      try {
+                                        User? user = await _authService.login(
+                                          email: _emailController.text
+                                              .trim(), // Tambah trim() biar spasi ilang
+                                          password: _passwordController.text,
+                                        );
+
+                                        if (user != null) {
+                                          String role = await _authService
+                                              .getUserRole(user.uid);
+
+                                          if (mounted) {
+                                            if (role == 'merchant') {
+                                              Navigator.pushReplacement(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      const MerchantHomeScreen(),
+                                                ),
+                                              );
+                                            } else {
+                                              Navigator.pushReplacement(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      const MainNavigatorScreen(),
+                                                ),
+                                              );
+                                            }
+                                          }
+                                        }
+                                      } catch (e) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(e.toString()),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      } finally {
+                                        if (mounted)
+                                          setState(() => _isLoading = false);
+                                      }
+                                    },
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        color: Color(0xFF2ECC71),
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Text(
+                                      "LOGIN",
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
                             ),
                           ),
                           const SizedBox(height: 30),
-                          // Tombol ke Halaman Daftar
                           TextButton(
                             onPressed: () {
-                              // Navigasi ke Halaman Register
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -150,17 +217,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold,
-                                      decoration: TextDecoration
-                                          .underline, // Garis bawah biar jelas link
+                                      decoration: TextDecoration.underline,
                                     ),
                                   ),
                                 ],
                               ),
                             ),
                           ),
-                          const SizedBox(
-                            height: 20,
-                          ), // Jarak napas terakhir di bawah
+                          const SizedBox(height: 20),
                         ],
                       ),
                     ),
@@ -174,9 +238,11 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  // 👇 FUNGSI YANG SUDAH DIPERBAIKI (Tambah parameter controller)
   Widget _buildGlassInput(
     IconData icon,
-    String hint, {
+    String hint,
+    TextEditingController controller, { // 👈 INI KUNCINYA
     bool isPassword = false,
   }) {
     return Container(
@@ -185,6 +251,7 @@ class _LoginScreenState extends State<LoginScreen> {
         borderRadius: BorderRadius.circular(15),
       ),
       child: TextField(
+        controller: controller, // 👈 DISAMBUNGIN KE SINI
         obscureText: isPassword,
         style: const TextStyle(color: Colors.white),
         decoration: InputDecoration(

@@ -11,25 +11,32 @@ dependencies:
   flutter:
     sdk: flutter
 
- # --- FIREBASE (VERSI BARU YANG LEBIH STABIL) ---
+  # --- MAPS & LOKASI ---
+  # 👇 INI KUNCINYA: Kita pake versi 7.0.0 biar gak bentrok sama Firebase
+  location: ^7.0.0
+  google_maps_flutter: ^2.5.3
+
+  # 👇 GANTI JADI ANGKA INI (WAJIB!!):
   firebase_core: ^2.27.0
-  firebase_auth: ^4.17.9
-  cloud_firestore: ^4.15.9
-  
-  # --- PENGATUR DATA (State Management) ---
+  firebase_auth: ^4.17.8
+  cloud_firestore: ^4.15.8
+
+  # --- PENGATUR DATA ---
   provider: ^6.0.0
 
   # --- TAMPILAN (UI) ---
   cupertino_icons: ^1.0.2
-  google_fonts: ^6.1.0       # Biar font tulisan bagus
-  intl: ^0.19.0              # Biar bisa format uang (Rp 10.000)
-  cached_network_image: ^3.3.0 # Biar gambar loadingnya cepat
+  google_fonts: ^6.1.0       # Versi aman
+  intl: ^0.19.0              # Versi aman
+  cached_network_image: ^3.3.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^2.0.0
-  flutter_map: ^6.1.0
+  flutter_lints: ^3.0.0
+  # Kalau lu pake ini buat fitur utama, pindahin ke 'dependencies' di atas ya.
+  # Tapi kalau cuma buat test, biarin disini.
+  flutter_map: ^6.1.0 
   latlong2: ^0.9.0
 
 flutter:
