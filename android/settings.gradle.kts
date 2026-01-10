@@ -19,15 +19,8 @@ pluginManagement {
 
 plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
-    
-    // 👇 GANTI JADI 8.2.1 (Tadinya 8.1.0)
-    id("com.android.application") version "8.2.1" apply false
-    
-    // 👇 GANTI JADI 1.9.0 (Biar jodoh sama versi atasnya)
-    id("org.jetbrains.kotlin.android") version "1.9.0" apply false
-    
-    // 👇 INI TETAP (Google Services)
-    id("com.google.gms.google-services") version "4.4.1" apply false
+    id("com.android.application") version "8.11.1" apply false
+    id("org.jetbrains.kotlin.android") version "2.2.20" apply false
 }
 
 include(":app")
