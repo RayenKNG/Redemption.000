@@ -49,7 +49,7 @@ class MyApp extends StatelessWidget {
         '/register': (context) => const RegisterScreen(),
 
         // Rute buat Merchant (Penjual)
-        '/merchant_home': (context) => const MainNavigatorScreen(),
+        '/merchant_home': (context) => const MerchantMainScreen(),
 
         '/user_home': (context) => const HomeScreen(),
       },

@@ -4,14 +4,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 class SupabaseDatabaseService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  // Ambil ID User yang login
+  // Ambil ID User yang lagi login
   String get currentUserId => FirebaseAuth.instance.currentUser?.uid ?? '';
 
-  // ====================================================
-  // 1. GET DATA (Untuk Dashboard & Menu)
-  // ====================================================
+  // ==========================================
+  // 1. FITUR MENU (MERCHANT)
+  // ==========================================
 
-  // Buat Merchant: Ambil menu toko sendiri
+  // Ambil Menu Toko Sendiri
   Stream<List<Map<String, dynamic>>> getMerchantMenuStream() {
     return _supabase
         .from('products')
@@ -20,19 +20,117 @@ class SupabaseDatabaseService {
         .order('created_at', ascending: false);
   }
 
-  // Buat User: Ambil SEMUA menu yang tersedia (Food Rescue)
+  // ==========================================
+  // 2. FITUR PESANAN (MERCHANT)
+  // ==========================================
+
+  // Ambil Orderan Masuk
+  Stream<List<Map<String, dynamic>>> getMerchantOrdersStream() {
+    return _supabase
+        .from('transactions')
+        .stream(primaryKey: ['id'])
+        .eq('merchant_id', currentUserId)
+        .order('created_at', ascending: false);
+  }
+
+  // Ambil Nama Produk dari ID
+  Future<Map<String, dynamic>> getProductById(String productId) async {
+    return await _supabase
+        .from('products')
+        .select()
+        .eq('id', productId)
+        .single();
+  }
+
+  // ==========================================
+  // 3. FITUR USER (PEMBELI)
+  // ==========================================
+
+  // Feed Makanan User
+  // Ambil SEMUA Menu yang Ada (Food Rescue Feed buat User)
   Stream<List<Map<String, dynamic>>> getAllAvailableMenuStream() {
     return _supabase
         .from('products')
         .stream(primaryKey: ['id'])
-        .eq('is_active', true)
-        .gt('stock', 0) // Cuma yang ada stoknya
-        .order('created_at', ascending: false);
+        .eq('is_active', true) // Filter aktif aja
+        .order('created_at', ascending: false)
+        .map((event) {
+          // ✅ FILTER MANUAL DI SINI (Client Side)
+          // Cuma lolosin yang stoknya > 0
+          return event
+              .where((product) => (product['stock'] as int) > 0)
+              .toList();
+        });
   }
 
-  // ====================================================
-  // 2. CRUD PRODUK (Tambah/Edit/Hapus)
-  // ====================================================
+  // ==========================================
+  // 4. TRANSAKSI (JUAL & BELI)
+  // ==========================================
+
+  // Merchant: Catat Penjualan Manual
+  Future<void> recordSale(
+    String productId,
+    int quantity,
+    int totalPrice,
+  ) async {
+    final productData = await _supabase
+        .from('products')
+        .select('stock')
+        .eq('id', productId)
+        .single();
+    int currentStock = productData['stock'] as int;
+
+    if (currentStock < quantity) throw Exception("Stok tidak cukup!");
+
+    await _supabase
+        .from('products')
+        .update({'stock': currentStock - quantity})
+        .eq('id', productId);
+
+    await _supabase.from('transactions').insert({
+      'merchant_id': currentUserId,
+      'product_id': productId,
+      'quantity': quantity,
+      'total_price': totalPrice,
+      'created_at': DateTime.now().toIso8601String(),
+    });
+  }
+
+  // User: Beli Makanan
+  Future<void> buyProduct(
+    String productId,
+    String merchantId,
+    int quantity,
+    int totalPrice,
+  ) async {
+    final productData = await _supabase
+        .from('products')
+        .select('stock')
+        .eq('id', productId)
+        .single();
+    int currentStock = productData['stock'] as int;
+
+    if (currentStock < quantity)
+      throw Exception("Yah, stoknya abis keduluan orang lain!");
+
+    await _supabase
+        .from('products')
+        .update({'stock': currentStock - quantity})
+        .eq('id', productId);
+
+    await _supabase.from('transactions').insert({
+      'merchant_id': merchantId,
+      'buyer_id': currentUserId,
+      'product_id': productId,
+      'quantity': quantity,
+      'total_price': totalPrice,
+      'created_at': DateTime.now().toIso8601String(),
+    });
+  }
+
+  // ==========================================
+  // 5. CRUD PRODUK
+  // ==========================================
 
   Future<void> addProduct(
     String name,
@@ -78,78 +176,27 @@ class SupabaseDatabaseService {
     await _supabase.from('products').delete().eq('id', id);
   }
 
-  // ====================================================
-  // 3. TRANSAKSI (JUAL BELI) - INI YANG BIKIN ERROR TADI
-  // ====================================================
+  // ==========================================
+  // 6. DASHBOARD & STATUS
+  // ==========================================
 
-  // 👉 OPSI A: recordSale (Dipakai Merchant buat Jual Manual/Kasir)
-  Future<void> recordSale(
-    String productId,
-    int quantity,
-    int totalPrice,
-  ) async {
-    // 1. Cek Stok
-    final productData = await _supabase
-        .from('products')
-        .select('stock')
-        .eq('id', productId)
-        .single();
-    int currentStock = productData['stock'] as int;
-    if (currentStock < quantity) throw Exception("Stok tidak cukup!");
+  Future<Map<String, dynamic>> getDashboardStats() async {
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day).toIso8601String();
 
-    // 2. Kurangi Stok
-    await _supabase
-        .from('products')
-        .update({'stock': currentStock - quantity})
-        .eq('id', productId);
+    final transactions = await _supabase
+        .from('transactions')
+        .select('total_price')
+        .eq('merchant_id', currentUserId)
+        .gte('created_at', startOfDay);
 
-    // 3. Catat Transaksi (Merchant ID = Current User)
-    await _supabase.from('transactions').insert({
-      'merchant_id': currentUserId,
-      'product_id': productId,
-      'quantity': quantity,
-      'total_price': totalPrice,
-      'created_at': DateTime.now().toIso8601String(),
-    });
+    int todayRevenue = 0;
+    for (var t in transactions) {
+      todayRevenue += (t['total_price'] as int);
+    }
+
+    return {'today_revenue': todayRevenue, 'today_orders': transactions.length};
   }
-
-  // 👉 OPSI B: buyProduct (Dipakai User buat Beli Online)
-  Future<void> buyProduct(
-    String productId,
-    String merchantId,
-    int quantity,
-    int totalPrice,
-  ) async {
-    // 1. Cek Stok
-    final productData = await _supabase
-        .from('products')
-        .select('stock')
-        .eq('id', productId)
-        .single();
-    int currentStock = productData['stock'] as int;
-    if (currentStock < quantity)
-      throw Exception("Yah, stoknya abis keduluan orang lain!");
-
-    // 2. Kurangi Stok
-    await _supabase
-        .from('products')
-        .update({'stock': currentStock - quantity})
-        .eq('id', productId);
-
-    // 3. Catat Transaksi (Ada Buyer ID-nya)
-    await _supabase.from('transactions').insert({
-      'merchant_id': merchantId, // Masuk ke dompet Merchant
-      'buyer_id': currentUserId, // Dicatat siapa yang beli
-      'product_id': productId,
-      'quantity': quantity,
-      'total_price': totalPrice,
-      'created_at': DateTime.now().toIso8601String(),
-    });
-  }
-
-  // ====================================================
-  // 4. LAIN-LAIN (Status Toko & Statistik)
-  // ====================================================
 
   Stream<Map<String, dynamic>> getShopStatus() {
     return _supabase
@@ -180,26 +227,4 @@ class SupabaseDatabaseService {
           .eq('id', currentUserId);
     }
   }
-
-  Future<Map<String, dynamic>> getDashboardStats() async {
-    final now = DateTime.now();
-    final startOfDay = DateTime(now.year, now.month, now.day).toIso8601String();
-
-    final transactions = await _supabase
-        .from('transactions')
-        .select('total_price')
-        .eq('merchant_id', currentUserId)
-        .gte('created_at', startOfDay);
-
-    int todayRevenue = 0;
-    for (var t in transactions) {
-      todayRevenue += (t['total_price'] as int);
-    }
-
-    return {'today_revenue': todayRevenue, 'today_orders': transactions.length};
-  }
-}
-
-extension on SupabaseStreamBuilder {
-  gt(String s, int i) {}
 }
