@@ -1,15 +1,14 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Buat ambil User ID
+import 'package:firebase_auth/firebase_auth.dart';
 
 class SupabaseDatabaseService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  // Ambil ID Merchant yang lagi login dari Firebase Auth
+  // Ambil ID User yang lagi login
   String get currentMerchantId => FirebaseAuth.instance.currentUser?.uid ?? '';
 
-  // 1. READ (Ambil Menu Realtime)
+  // 1. AMBIL DATA MENU (REALTIME)
   Stream<List<Map<String, dynamic>>> getMenuStream() {
-    // Filter berdasarkan merchant_id biar yg muncul cuma produk toko ini
     return _supabase
         .from('products')
         .stream(primaryKey: ['id'])
@@ -17,9 +16,10 @@ class SupabaseDatabaseService {
         .order('created_at', ascending: false);
   }
 
-  // 2. CREATE (Tambah Menu Baru)
+  // 2. TAMBAH PRODUK BARU (LENGKAP)
   Future<void> addProduct(
     String name,
+    String? description,
     int originalPrice,
     int price,
     int stock,
@@ -28,6 +28,7 @@ class SupabaseDatabaseService {
     await _supabase.from('products').insert({
       'merchant_id': currentMerchantId,
       'name': name,
+      'description': description, // ✅ Deskripsi Masuk DB
       'original_price': originalPrice,
       'price': price,
       'stock': stock,
@@ -36,15 +37,37 @@ class SupabaseDatabaseService {
     });
   }
 
-  // 3. DELETE (Hapus Menu)
+  // 3. UPDATE PRODUK (LENGKAP)
+  Future<void> updateProduct(
+    String id,
+    String name,
+    String? description,
+    int originalPrice,
+    int price,
+    int stock,
+    String? imageUrl,
+  ) async {
+    final data = {
+      'name': name,
+      'description': description, // ✅ Deskripsi Masuk DB
+      'original_price': originalPrice,
+      'price': price,
+      'stock': stock,
+    };
+    if (imageUrl != null) {
+      data['image_url'] = imageUrl;
+    }
+
+    await _supabase.from('products').update(data).eq('id', id);
+  }
+
+  // 4. HAPUS PRODUK
   Future<void> deleteProduct(String id) async {
     await _supabase.from('products').delete().eq('id', id);
   }
 
-  // 4. UPDATE TOKO (Buka/Tutup) - Disimpan di tabel 'merchants'
-  // Pastikan lu udah bikin tabel 'merchants' di Supabase ya!
+  // 5. UPDATE STATUS TOKO (Buka/Tutup)
   Future<void> toggleShopStatus(bool isOpen) async {
-    // Cek dulu datanya ada gak
     final check = await _supabase
         .from('merchants')
         .select()
@@ -52,13 +75,11 @@ class SupabaseDatabaseService {
         .maybeSingle();
 
     if (check == null) {
-      // Kalo belum ada, insert baru
       await _supabase.from('merchants').insert({
         'id': currentMerchantId,
         'is_open': isOpen,
       });
     } else {
-      // Kalo udah ada, update
       await _supabase
           .from('merchants')
           .update({'is_open': isOpen})
@@ -66,7 +87,7 @@ class SupabaseDatabaseService {
     }
   }
 
-  // 5. GET STATUS TOKO
+  // 6. AMBIL STATUS TOKO
   Stream<Map<String, dynamic>> getShopStatus() {
     return _supabase
         .from('merchants')
@@ -77,11 +98,8 @@ class SupabaseDatabaseService {
           return event.first;
         });
   }
-  // ... import dan class SupabaseDatabaseService yang lama ...
 
-  // 👇 TAMBAHKAN INI DI DALAM CLASS:
-
-  // 1. CATAT TRANSAKSI (Kurangi Stok + Simpan Riwayat)
+  // 7. CATAT PENJUALAN (TRANSAKSI)
   Future<void> recordSale(
     String productId,
     int quantity,
@@ -108,10 +126,11 @@ class SupabaseDatabaseService {
       'product_id': productId,
       'quantity': quantity,
       'total_price': totalPrice,
+      'created_at': DateTime.now().toIso8601String(),
     });
   }
 
-  // 2. HITUNG TOTAL DUIT (OMZET)
+  // 8. HITUNG TOTAL PENDAPATAN (WALLET)
   Future<int> getTotalRevenue() async {
     final res = await _supabase
         .from('transactions')
@@ -124,7 +143,7 @@ class SupabaseDatabaseService {
     return total;
   }
 
-  // 3. AMBIL RIWAYAT TRANSAKSI
+  // 9. AMBIL RIWAYAT TRANSAKSI
   Stream<List<Map<String, dynamic>>> getTransactionHistory() {
     return _supabase
         .from('transactions')
@@ -133,32 +152,7 @@ class SupabaseDatabaseService {
         .order('created_at', ascending: false);
   }
 
-  // ... (Kodingan sebelumnya biarkan saja) ...
-
-  // 9. UPDATE PRODUK (Edit Menu)
-  Future<void> updateProduct(
-    String id,
-    String name,
-    int originalPrice,
-    int price,
-    int stock,
-    String? imageUrl,
-  ) async {
-    final data = {
-      'name': name,
-      'original_price': originalPrice,
-      'price': price,
-      'stock': stock,
-    };
-    // Kalau ada gambar baru, update link-nya. Kalau null, biarin link lama.
-    if (imageUrl != null) {
-      data['image_url'] = imageUrl;
-    }
-
-    await _supabase.from('products').update(data).eq('id', id);
-  }
-
-  // 10. GET DASHBOARD STATS (Buat isi Dashboard biar gak kosong)
+  // 10. GET DASHBOARD STATS (Buat Dashboard)
   Future<Map<String, dynamic>> getDashboardStats() async {
     // A. Hitung Total Produk Aktif
     final products = await _supabase
@@ -175,7 +169,7 @@ class SupabaseDatabaseService {
         .from('transactions')
         .select('total_price')
         .eq('merchant_id', currentMerchantId)
-        .gte('created_at', startOfDay); // Ambil yg >= hari ini jam 00:00
+        .gte('created_at', startOfDay);
 
     int todayRevenue = 0;
     for (var t in transactions) {
@@ -188,4 +182,18 @@ class SupabaseDatabaseService {
       'today_orders': transactions.length,
     };
   }
+
+  // 11. AMBIL PRODUK STOK MENIPIS (<= 5)
+  Stream<List<Map<String, dynamic>>> getLowStockProducts() {
+    return _supabase
+        .from('products')
+        .stream(primaryKey: ['id'])
+        .eq('merchant_id', currentMerchantId)
+        .lte('stock', 5)
+        .order('stock', ascending: true);
+  }
+}
+
+extension on SupabaseStreamBuilder {
+  lte(String s, int i) {}
 }
