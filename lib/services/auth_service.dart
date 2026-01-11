@@ -1,10 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // 👈 Tambah Import Ini
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  get _firestore => FirebaseFirestore.instance;
+  // Getter Firestore
+  FirebaseFirestore get _firestore => FirebaseFirestore.instance;
 
   // 1. Fungsi Login (Masuk)
   Future<User?> login({required String email, required String password}) async {
@@ -21,7 +22,7 @@ class AuthService {
     }
   }
 
-  // 2. Fungsi Register (Daftar Baru) -> INI YANG BARU KITA TAMBAH
+  // 2. Fungsi Register (Daftar Baru)
   Future<User?> register({
     required String email,
     required String password,
@@ -38,28 +39,25 @@ class AuthService {
   }
 
   // 3. Fungsi Logout (Keluar)
-  Future<void> logout() async {
+  // ✅ NAMA FUNGSI DISAMAKAN JADI 'signOut' (Sesuai UI)
+  Future<void> signOut() async {
     await _auth.signOut();
   }
 
-  // 👇 4. FUNGSI BARU: CEK ROLE (HUNTER / MERCHANT)
+  // 4. Cek Role (Hunter / Merchant)
   Future<String> getUserRole(String uid) async {
     try {
-      // Cari data user di koleksi 'users' berdasarkan UID
       DocumentSnapshot doc = await _firestore
           .collection('users')
           .doc(uid)
           .get();
-
       if (doc.exists) {
-        // Ambil data 'role' dari database (misal: "merchant" atau "user")
         return doc.get('role') ?? 'user';
       } else {
-        // Kalau datanya gak ada, anggap aja user biasa
         return 'user';
       }
     } catch (e) {
-      return 'user'; // Default kalau error
+      return 'user';
     }
   }
 }
