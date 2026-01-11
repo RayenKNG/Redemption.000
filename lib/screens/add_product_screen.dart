@@ -14,6 +14,8 @@ class AddProductScreen extends StatefulWidget {
 class _AddProductScreenState extends State<AddProductScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
+  final _descriptionController =
+      TextEditingController(); // ✅ Added Description Controller
   final _originalPriceController = TextEditingController(); // Harga Coret
   final _priceController = TextEditingController(); // Harga Jual
   final _stockController = TextEditingController();
@@ -45,10 +47,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
       // Simpan ke Database Supabase
       await _dbService.addProduct(
         _nameController.text,
+        _descriptionController.text, // ✅ Pass description
         int.parse(_originalPriceController.text),
         int.parse(_priceController.text),
         int.parse(_stockController.text),
-        imageUrl,
+        imageUrl, // ✅ Pass imageUrl as String? (removed incorrect 'as int')
       );
 
       if (mounted) {
@@ -58,10 +61,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
         Navigator.pop(context);
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -119,6 +123,18 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 border: OutlineInputBorder(),
               ),
               validator: (v) => v!.isEmpty ? "Isi dulu bro" : null,
+            ),
+            const SizedBox(height: 15),
+
+            // ✅ Added Description Input Field
+            TextFormField(
+              controller: _descriptionController,
+              decoration: const InputDecoration(
+                labelText: "Deskripsi (Opsional)",
+                border: OutlineInputBorder(),
+                hintText: "Contoh: Roti isi coklat lumer, tahan 2 hari.",
+              ),
+              maxLines: 3,
             ),
             const SizedBox(height: 15),
 

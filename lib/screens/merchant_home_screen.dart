@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:saveplate/screens/add_product_screen.dart';
-import 'package:saveplate/screens/product_detail_screen.dart'; // ✅ WAJIB IMPORT INI
-import 'package:saveplate/services/supabase_database_service.dart'; // ✅ WAJIB
-import 'package:saveplate/models/product_model.dart'; // ✅ WAJIB
-import 'package:intl/intl.dart'; // ✅ WAJIB
+import 'package:intl/intl.dart'; // ✅ WAJIB (Buat Rupiah)
+
+// ✅ WAJIB: MODEL & SERVICE
+import 'package:saveplate/models/product_model.dart';
+import 'package:saveplate/services/supabase_database_service.dart';
+
+// ✅ WAJIB: HALAMAN-HALAMAN LAIN
+import 'package:saveplate/screens/product_detail_screen.dart';
+import 'package:saveplate/screens/edit_product_screen.dart';
+import 'package:saveplate/screens/add_product_screen.dart'; // 👈 INI YANG TADI KURANG BRO!
 
 // --- KONFIGURASI WARNA ---
 const Color kPrimaryColor = Color(0xFFFF6D00);
@@ -82,7 +87,7 @@ class _MerchantMainScreenState extends State<MerchantMainScreen> {
 }
 
 // ===============================================================
-// 1. DASHBOARD TAB
+// 1. DASHBOARD TAB (UPDATE: ADA STATISTIKNYA)
 // ===============================================================
 class DashboardTab extends StatelessWidget {
   const DashboardTab({super.key});
@@ -90,56 +95,185 @@ class DashboardTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dbService = SupabaseDatabaseService();
+    final currency = NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'Rp ',
+      decimalDigits: 0,
+    );
 
     return Scaffold(
       backgroundColor: kBgColor,
       appBar: AppBar(
+        title: const Text(
+          "Dashboard Owner",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Column(
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              "Halo, Boss!",
-              style: TextStyle(color: Colors.grey, fontSize: 12),
+            // STATUS TOKO CARD
+            StreamBuilder<Map<String, dynamic>>(
+              stream: dbService.getShopStatus(),
+              builder: (context, snapshot) {
+                bool isOpen = snapshot.data?['is_open'] ?? false;
+                return Container(
+                  padding: const EdgeInsets.all(15),
+                  decoration: BoxDecoration(
+                    color: isOpen ? Colors.green[50] : Colors.red[50],
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(
+                      color: isOpen ? Colors.green : Colors.red,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        isOpen ? "TOKO SEDANG BUKA" : "TOKO TUTUP",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: isOpen ? Colors.green : Colors.red,
+                        ),
+                      ),
+                      Switch(
+                        value: isOpen,
+                        activeColor: Colors.green,
+                        onChanged: (val) => dbService.toggleShopStatus(val),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
-            Text(
-              "Roti Makmur",
-              style: TextStyle(color: kTextDark, fontWeight: FontWeight.bold),
+            const SizedBox(height: 20),
+
+            // STATISTIK REALTIME (FutureBuilder)
+            FutureBuilder<Map<String, dynamic>>(
+              future: dbService.getDashboardStats(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: LinearProgressIndicator());
+                }
+
+                final data =
+                    snapshot.data ??
+                    {
+                      'today_revenue': 0,
+                      'today_orders': 0,
+                      'total_products': 0,
+                    };
+
+                return Row(
+                  children: [
+                    // CARD 1: PENDAPATAN HARI INI
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(15),
+                        decoration: BoxDecoration(
+                          color: Colors.orange,
+                          borderRadius: BorderRadius.circular(15),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.orange.withOpacity(0.3),
+                              blurRadius: 10,
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Omzet Hari Ini",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              currency.format(data['today_revenue']),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 15),
+                    // CARD 2: TOTAL ORDER
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(15),
+                        decoration: BoxDecoration(
+                          color: Colors.blue,
+                          borderRadius: BorderRadius.circular(15),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.blue.withOpacity(0.3),
+                              blurRadius: 10,
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Total Pesanan",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              "${data['today_orders']} Order",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+
+            const SizedBox(height: 25),
+            const Text(
+              "Menu Laris Manis",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            // Placeholder Grafik/List
+            Container(
+              height: 200,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Center(
+                child: Text(
+                  "Grafik Penjualan Akan Muncul Disini",
+                  style: TextStyle(color: Colors.grey[400]),
+                ),
+              ),
             ),
           ],
         ),
-        actions: [
-          StreamBuilder<Map<String, dynamic>>(
-            stream: dbService.getShopStatus(),
-            builder: (context, snapshot) {
-              bool isOpen = false;
-              if (snapshot.hasData) isOpen = snapshot.data!['is_open'] ?? false;
-
-              return Container(
-                margin: const EdgeInsets.only(right: 15),
-                child: Row(
-                  children: [
-                    Text(
-                      isOpen ? "BUKA" : "TUTUP",
-                      style: TextStyle(
-                        color: isOpen ? Colors.green : Colors.red,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Switch(
-                      value: isOpen,
-                      activeColor: Colors.green,
-                      onChanged: (val) => dbService.toggleShopStatus(val),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ],
       ),
-      body: const Center(child: Text("Statistik Penjualan (Coming Soon)")),
     );
   }
 }
@@ -155,7 +289,7 @@ class OrdersTab extends StatelessWidget {
 }
 
 // ===============================================================
-// 3. MENU TAB (FIXED GESTURE DETECTOR)
+// 3. MENU TAB (SUDAH DIPERBAIKI TOTAL)
 // ===============================================================
 class MenuTab extends StatelessWidget {
   const MenuTab({super.key});
@@ -164,7 +298,7 @@ class MenuTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final dbService = SupabaseDatabaseService();
 
-    // ❌ DULU KAMU SALAH NARUH GESTURE DETECTOR DISINI
+    // ✅ KEMBALIKAN KE SCAFFOLD (JANGAN DIBUNGKUS GESTURE DISINI)
     return Scaffold(
       backgroundColor: kBgColor,
       appBar: AppBar(
@@ -199,7 +333,7 @@ class MenuTab extends StatelessWidget {
             itemCount: snapshot.data!.length,
             itemBuilder: (context, index) {
               final product = ProductModel.fromMap(snapshot.data![index]);
-              // Panggil Widget Kartu di bawah
+              // Panggil fungsi kartu di bawah
               return _buildProductCard(context, dbService, product);
             },
           );
@@ -208,7 +342,7 @@ class MenuTab extends StatelessWidget {
     );
   }
 
-  // 👇 LOGIC CARD + NAVIGASI ADA DI SINI (BUKAN DI ATAS)
+  // 👇 FITUR EDIT & HAPUS ADA DISINI
   Widget _buildProductCard(
     BuildContext context,
     SupabaseDatabaseService db,
@@ -221,11 +355,10 @@ class MenuTab extends StatelessWidget {
     );
     bool isOutOfStock = product.stock <= 0;
 
-    // ✅ GESTURE DETECTOR YANG BENAR ADA DISINI
-    // Dia membungkus Container kartu, bukan membungkus Scaffold.
+    // ✅ GESTURE DETECTOR ITU DISINI TEMPATNYA (Bungkus Kartu)
     return GestureDetector(
       onTap: () {
-        // Pindah ke halaman detail pas diklik
+        // Klik Kartu -> Pindah ke Detail
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -248,7 +381,7 @@ class MenuTab extends StatelessWidget {
         ),
         child: Column(
           children: [
-            // GAMBAR & STATUS
+            // 1. GAMBAR & LABEL
             Stack(
               children: [
                 Container(
@@ -316,7 +449,7 @@ class MenuTab extends StatelessWidget {
               ],
             ),
 
-            // INFO PRODUK
+            // 2. INFO & TOMBOL AKSI (EDIT + DELETE)
             Padding(
               padding: const EdgeInsets.all(15),
               child: Row(
@@ -364,11 +497,61 @@ class MenuTab extends StatelessWidget {
                       ],
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Colors.red),
-                    onPressed: () {
-                      if (product.id != null) db.deleteProduct(product.id!);
-                    },
+
+                  // 👇 INI DIA TOMBOL EDIT & HAPUS BERDAMPINGAN
+                  Row(
+                    children: [
+                      // TOMBOL EDIT (Pensil)
+                      IconButton(
+                        icon: const Icon(Icons.edit, color: Colors.blue),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  EditProductScreen(product: product),
+                            ),
+                          );
+                        },
+                      ),
+
+                      // TOMBOL HAPUS (Sampah + Pop Up)
+                      IconButton(
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: Colors.red,
+                        ),
+                        onPressed: () {
+                          // Pop-up Konfirmasi
+                          showDialog(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text("Hapus Menu?"),
+                              content: Text(
+                                "Yakin mau hapus '${product.name}'?",
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx),
+                                  child: const Text("Gak Jadi"),
+                                ),
+                                TextButton(
+                                  onPressed: () {
+                                    if (product.id != null)
+                                      db.deleteProduct(product.id!);
+                                    Navigator.pop(ctx);
+                                  },
+                                  child: const Text(
+                                    "Hapus",
+                                    style: TextStyle(color: Colors.red),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -378,9 +561,8 @@ class MenuTab extends StatelessWidget {
       ),
     );
   }
-}
+} // ===============================================================
 
-// ===============================================================
 // 4. WALLET TAB (BENDAHARA - SUDAH FIX)
 // ===============================================================
 class WalletTab extends StatelessWidget {
