@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:saveplate/screens/product_detail_screen.dart'; // ✅ WAJIB IMPORT INI
-import 'package:saveplate/services/supabase_database_service.dart'; // ✅ WAJIB
-import 'package:saveplate/models/product_model.dart'; // ✅ WAJIB
-import 'package:intl/intl.dart'; // ✅ WAJIB
-import 'package:saveplate/screens/edit_product_screen.dart'; // ✅ PENTING
+import 'package:intl/intl.dart'; // ✅ WAJIB (Buat Rupiah)
+
+// ✅ WAJIB: MODEL & SERVICE
+import 'package:saveplate/models/product_model.dart';
+import 'package:saveplate/services/supabase_database_service.dart';
+
+// ✅ WAJIB: HALAMAN-HALAMAN LAIN
+import 'package:saveplate/screens/product_detail_screen.dart';
+import 'package:saveplate/screens/edit_product_screen.dart';
+import 'package:saveplate/screens/add_product_screen.dart'; // 👈 INI YANG TADI KURANG BRO!
 
 // --- KONFIGURASI WARNA ---
 const Color kPrimaryColor = Color(0xFFFF6D00);
