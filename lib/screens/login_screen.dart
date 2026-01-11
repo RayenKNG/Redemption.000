@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'register_screen.dart';
 import '../services/auth_service.dart';
 import 'merchant_home_screen.dart';
+
 // import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -151,7 +152,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                                 context,
                                                 MaterialPageRoute(
                                                   builder: (context) =>
-                                                      const MerchantMainScreen(),
+                                                      const MainNavigatorScreen(),
                                                 ),
                                               );
                                             } else {
@@ -159,7 +160,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                                 context,
                                                 MaterialPageRoute(
                                                   builder: (context) =>
-                                                      const MainNavigatorScreen(),
+                                                      const MainNavigatorScreenUser(),
                                                 ),
                                               );
                                             }

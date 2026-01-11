@@ -6,14 +6,14 @@ import 'map_hunter_screen.dart';
 // 1. NAVIGASI UTAMA (DENGAN BOTTOM BAR KACA)
 // ==========================================
 
-class MainNavigatorScreen extends StatefulWidget {
-  const MainNavigatorScreen({super.key});
+class MainNavigatorScreenUser extends StatefulWidget {
+  const MainNavigatorScreenUser({super.key});
 
   @override
-  State<MainNavigatorScreen> createState() => _MainNavigatorScreenState();
+  State<MainNavigatorScreenUser> createState() => _MainNavigatorScreenState();
 }
 
-class _MainNavigatorScreenState extends State<MainNavigatorScreen> {
+class _MainNavigatorScreenState extends State<MainNavigatorScreenUser> {
   int _selectedIndex = 0;
 
   final List<Widget> _pages = [
