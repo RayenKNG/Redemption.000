@@ -132,4 +132,60 @@ class SupabaseDatabaseService {
         .eq('merchant_id', currentMerchantId)
         .order('created_at', ascending: false);
   }
+
+  // ... (Kodingan sebelumnya biarkan saja) ...
+
+  // 9. UPDATE PRODUK (Edit Menu)
+  Future<void> updateProduct(
+    String id,
+    String name,
+    int originalPrice,
+    int price,
+    int stock,
+    String? imageUrl,
+  ) async {
+    final data = {
+      'name': name,
+      'original_price': originalPrice,
+      'price': price,
+      'stock': stock,
+    };
+    // Kalau ada gambar baru, update link-nya. Kalau null, biarin link lama.
+    if (imageUrl != null) {
+      data['image_url'] = imageUrl;
+    }
+
+    await _supabase.from('products').update(data).eq('id', id);
+  }
+
+  // 10. GET DASHBOARD STATS (Buat isi Dashboard biar gak kosong)
+  Future<Map<String, dynamic>> getDashboardStats() async {
+    // A. Hitung Total Produk Aktif
+    final products = await _supabase
+        .from('products')
+        .select('id')
+        .eq('merchant_id', currentMerchantId)
+        .eq('is_active', true);
+
+    // B. Hitung Penjualan Hari Ini
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day).toIso8601String();
+
+    final transactions = await _supabase
+        .from('transactions')
+        .select('total_price')
+        .eq('merchant_id', currentMerchantId)
+        .gte('created_at', startOfDay); // Ambil yg >= hari ini jam 00:00
+
+    int todayRevenue = 0;
+    for (var t in transactions) {
+      todayRevenue += (t['total_price'] as int);
+    }
+
+    return {
+      'total_products': products.length,
+      'today_revenue': todayRevenue,
+      'today_orders': transactions.length,
+    };
+  }
 }
