@@ -77,4 +77,59 @@ class SupabaseDatabaseService {
           return event.first;
         });
   }
+  // ... import dan class SupabaseDatabaseService yang lama ...
+
+  // 👇 TAMBAHKAN INI DI DALAM CLASS:
+
+  // 1. CATAT TRANSAKSI (Kurangi Stok + Simpan Riwayat)
+  Future<void> recordSale(
+    String productId,
+    int quantity,
+    int totalPrice,
+  ) async {
+    // A. Kurangi Stok
+    final productData = await _supabase
+        .from('products')
+        .select('stock')
+        .eq('id', productId)
+        .single();
+    int currentStock = productData['stock'] as int;
+
+    if (currentStock < quantity) throw Exception("Stok abis bro!");
+
+    await _supabase
+        .from('products')
+        .update({'stock': currentStock - quantity})
+        .eq('id', productId);
+
+    // B. Simpan ke Tabel Transaksi
+    await _supabase.from('transactions').insert({
+      'merchant_id': currentMerchantId,
+      'product_id': productId,
+      'quantity': quantity,
+      'total_price': totalPrice,
+    });
+  }
+
+  // 2. HITUNG TOTAL DUIT (OMZET)
+  Future<int> getTotalRevenue() async {
+    final res = await _supabase
+        .from('transactions')
+        .select('total_price')
+        .eq('merchant_id', currentMerchantId);
+    int total = 0;
+    for (var item in res) {
+      total += (item['total_price'] as int);
+    }
+    return total;
+  }
+
+  // 3. AMBIL RIWAYAT TRANSAKSI
+  Stream<List<Map<String, dynamic>>> getTransactionHistory() {
+    return _supabase
+        .from('transactions')
+        .stream(primaryKey: ['id'])
+        .eq('merchant_id', currentMerchantId)
+        .order('created_at', ascending: false);
+  }
 }
