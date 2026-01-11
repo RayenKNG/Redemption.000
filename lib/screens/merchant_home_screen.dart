@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:saveplate/screens/add_product_screen.dart';
 import 'package:saveplate/screens/product_detail_screen.dart'; // ✅ WAJIB IMPORT INI
 import 'package:saveplate/services/supabase_database_service.dart'; // ✅ WAJIB
 import 'package:saveplate/models/product_model.dart'; // ✅ WAJIB
 import 'package:intl/intl.dart'; // ✅ WAJIB
+import 'package:saveplate/screens/edit_product_screen.dart'; // ✅ PENTING
 
 // --- KONFIGURASI WARNA ---
 const Color kPrimaryColor = Color(0xFFFF6D00);
