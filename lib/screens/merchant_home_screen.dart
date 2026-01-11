@@ -1,13 +1,87 @@
 import 'package:flutter/material.dart';
-import 'package:saveplate/services/supabase_database_service.dart'; // Pake DB baru
+import 'package:saveplate/services/supabase_database_service.dart'; // ✅ Pake Supabase Service
 import 'package:saveplate/models/product_model.dart';
 import 'package:saveplate/screens/add_product_screen.dart';
-import 'package:intl/intl.dart'; // Add 'intl' di pubspec.yaml buat format duit
+import 'package:intl/intl.dart';
 
-// ... Class MerchantMainScreen tetep sama ...
+// --- KONFIGURASI WARNA ---
+const Color kPrimaryColor = Color(0xFFFF6D00);
+const Color kBgColor = Color(0xFFF9FAFB);
+const Color kTextDark = Color(0xFF1F2937);
+
+class MerchantMainScreen extends StatefulWidget {
+  const MerchantMainScreen({super.key});
+
+  @override
+  State<MerchantMainScreen> createState() => _MerchantMainScreenState();
+}
+
+class _MerchantMainScreenState extends State<MerchantMainScreen> {
+  int _currentIndex = 0;
+
+  final List<Widget> _pages = [
+    const DashboardTab(),
+    const OrdersTab(),
+    const MenuTab(), // Halaman Menu
+    const WalletTab(),
+    const ProfileTab(),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: kBgColor,
+      body: _pages[_currentIndex],
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          onTap: (index) => setState(() => _currentIndex = index),
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: Colors.white,
+          selectedItemColor: kPrimaryColor,
+          unselectedItemColor: Colors.grey,
+          showUnselectedLabels: true,
+          elevation: 0,
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.dashboard_rounded),
+              label: "Beranda",
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.receipt_long_rounded),
+              label: "Pesanan",
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.inventory_2_rounded),
+              label: "Menu",
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.account_balance_wallet_rounded),
+              label: "Dompet",
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.store_rounded),
+              label: "Profil",
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 // ===============================================================
-// 1. DASHBOARD TAB (UPDATE: Fitur Buka Tutup Toko)
+// 1. DASHBOARD TAB (SUPABASE VERSION)
 // ===============================================================
 class DashboardTab extends StatelessWidget {
   const DashboardTab({super.key});
@@ -35,7 +109,6 @@ class DashboardTab extends StatelessWidget {
           ],
         ),
         actions: [
-          // SWITCH BUKA TUTUP TOKO REALTIME
           StreamBuilder<Map<String, dynamic>>(
             stream: dbService.getShopStatus(),
             builder: (context, snapshot) {
@@ -65,27 +138,35 @@ class DashboardTab extends StatelessWidget {
           ),
         ],
       ),
-      body: const Center(child: Text("Isi Dashboard Statistik Disini...")),
+      body: const Center(child: Text("Statistik Penjualan (Coming Soon)")),
     );
   }
 }
 
-// ... OrdersTab biarin dulu ...
+// ===============================================================
+// 2. ORDERS TAB
+// ===============================================================
+class OrdersTab extends StatelessWidget {
+  const OrdersTab({super.key});
+  @override
+  Widget build(BuildContext context) =>
+      const Scaffold(body: Center(child: Text("Pesanan")));
+}
 
 // ===============================================================
-// 3. MENU TAB (UPDATE: Card Cantik & Logic Stok)
+// 3. MENU TAB (SUPABASE VERSION - FIXED!)
 // ===============================================================
 class MenuTab extends StatelessWidget {
   const MenuTab({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final dbService = SupabaseDatabaseService();
+    final dbService = SupabaseDatabaseService(); // ✅ Pake Service Supabase
 
     return Scaffold(
       backgroundColor: kBgColor,
       appBar: AppBar(
-        title: const Text("Manajemen Menu"),
+        title: const Text("Atur Menu"),
         backgroundColor: Colors.white,
         elevation: 0,
       ),
@@ -98,21 +179,24 @@ class MenuTab extends StatelessWidget {
           MaterialPageRoute(builder: (_) => const AddProductScreen()),
         ),
       ),
+      // ✅ Stream-nya beda tipe datanya sama Firestore
       body: StreamBuilder<List<Map<String, dynamic>>>(
         stream: dbService.getMenuStream(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting)
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
-          if (!snapshot.hasData || snapshot.data!.isEmpty)
-            return const Center(
-              child: Text("Belum ada menu, jual sisa makananmu sekarang!"),
-            );
+          }
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(child: Text("Belum ada menu, yuk tambah!"));
+          }
 
           return ListView.builder(
             padding: const EdgeInsets.all(15),
             itemCount: snapshot.data!.length,
             itemBuilder: (context, index) {
+              // ✅ CARA MAPPING DATA SUPABASE YANG BENAR
               final product = ProductModel.fromMap(snapshot.data![index]);
+
               return _buildProductCard(context, dbService, product);
             },
           );
@@ -121,7 +205,6 @@ class MenuTab extends StatelessWidget {
     );
   }
 
-  // 👇 CARD BARU: Lebih Visual & User Friendly
   Widget _buildProductCard(
     BuildContext context,
     SupabaseDatabaseService db,
@@ -149,7 +232,7 @@ class MenuTab extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // 1. BAGIAN GAMBAR & STATUS STOK
+          // GAMBAR & STATUS
           Stack(
             children: [
               Container(
@@ -159,59 +242,33 @@ class MenuTab extends StatelessWidget {
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(15),
                   ),
+                  color: Colors.grey[200],
                   image: product.imageUrl != null
                       ? DecorationImage(
                           image: NetworkImage(product.imageUrl!),
                           fit: BoxFit.cover,
                         )
                       : null,
-                  color: Colors.grey[200],
                 ),
                 child: product.imageUrl == null
                     ? const Icon(Icons.fastfood, size: 50, color: Colors.grey)
                     : null,
               ),
-              // Overlay kalau habis
               if (isOutOfStock)
                 Container(
                   height: 150,
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
+                    color: Colors.black54,
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(15),
                     ),
                   ),
                   child: const Center(
                     child: Text(
-                      "STOK HABIS",
+                      "HABIS",
                       style: TextStyle(
                         color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20,
-                      ),
-                    ),
-                  ),
-                ),
-              // Badge Diskon
-              if (!isOutOfStock)
-                Positioned(
-                  top: 10,
-                  left: 10,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Text(
-                      "Hemat Makanan!",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -220,7 +277,7 @@ class MenuTab extends StatelessWidget {
             ],
           ),
 
-          // 2. BAGIAN DETAIL INFO
+          // INFO PRODUK
           Padding(
             padding: const EdgeInsets.all(15),
             child: Row(
@@ -234,62 +291,34 @@ class MenuTab extends StatelessWidget {
                         product.name,
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 18,
+                          fontSize: 16,
                         ),
                       ),
-                      const SizedBox(height: 5),
-                      // Harga Coret vs Harga Jual
-                      Row(
-                        children: [
-                          Text(
-                            currency.format(product.originalPrice),
-                            style: const TextStyle(
-                              decoration: TextDecoration.lineThrough,
-                              color: Colors.grey,
-                              fontSize: 12,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            currency.format(product.price),
-                            style: const TextStyle(
-                              color: kPrimaryColor,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ],
+                      Text(
+                        currency.format(product.price),
+                        style: const TextStyle(
+                          color: kPrimaryColor,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                      const SizedBox(height: 5),
-                      // Indikator Stok
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.inventory_2,
-                            size: 14,
-                            color: isOutOfStock ? Colors.red : Colors.green,
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            isOutOfStock
-                                ? "Stok: 0 (Restock yuk!)"
-                                : "Sisa Stok: ${product.stock}",
-                            style: TextStyle(
-                              color: isOutOfStock
-                                  ? Colors.red
-                                  : Colors.grey[700],
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
+                      Text(
+                        "Sisa Stok: ${product.stock}",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isOutOfStock ? Colors.red : Colors.grey,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                // Tombol Hapus / Edit
                 IconButton(
                   icon: const Icon(Icons.delete_outline, color: Colors.red),
-                  onPressed: () => db.deleteProduct(product.id!),
+                  onPressed: () {
+                    // ✅ FIX ERROR DELETE: Pake tanda seru (!) karena ID Supabase bisa null teorinya
+                    if (product.id != null) {
+                      db.deleteProduct(product.id!);
+                    }
+                  },
                 ),
               ],
             ),
@@ -298,4 +327,21 @@ class MenuTab extends StatelessWidget {
       ),
     );
   }
+}
+
+// ===============================================================
+// 4. WALLET TAB & 5. PROFILE TAB
+// ===============================================================
+class WalletTab extends StatelessWidget {
+  const WalletTab({super.key});
+  @override
+  Widget build(BuildContext context) =>
+      const Scaffold(body: Center(child: Text("Dompet")));
+}
+
+class ProfileTab extends StatelessWidget {
+  const ProfileTab({super.key});
+  @override
+  Widget build(BuildContext context) =>
+      const Scaffold(body: Center(child: Text("Profil")));
 }
