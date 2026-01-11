@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:saveplate/services/supabase_service.dart'; // Storage
+import 'package:saveplate/services/supabase_database_service.dart'; // Database Baru
 
 class AddProductScreen extends StatefulWidget {
   const AddProductScreen({super.key});
@@ -11,50 +13,55 @@ class AddProductScreen extends StatefulWidget {
 
 class _AddProductScreenState extends State<AddProductScreen> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _priceController = TextEditingController();
-  final TextEditingController _stockController = TextEditingController();
+  final _nameController = TextEditingController();
+  final _originalPriceController = TextEditingController(); // Harga Coret
+  final _priceController = TextEditingController(); // Harga Jual
+  final _stockController = TextEditingController();
+
+  File? _selectedImage;
   bool _isLoading = false;
 
-  // Fungsi Upload ke Firestore
-  Future<void> _uploadProduct() async {
-    if (!_formKey.currentState!.validate()) return;
+  final SupabaseStorageService _storageService = SupabaseStorageService();
+  final SupabaseDatabaseService _dbService = SupabaseDatabaseService();
 
+  Future<void> _pickImage() async {
+    final XFile? image = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+    );
+    if (image != null) setState(() => _selectedImage = File(image.path));
+  }
+
+  Future<void> _saveProduct() async {
+    if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
+      String? imageUrl;
+      if (_selectedImage != null) {
+        // Upload gambar dulu
+        imageUrl = await _storageService.uploadImage(_selectedImage!);
+      }
 
-      // Simpan ke Firestore
-      await FirebaseFirestore.instance.collection('products').add({
-        'merchantId': user.uid,
-        'name': _nameController.text,
-        'price': int.parse(_priceController.text),
-        'stock': int.parse(_stockController.text),
-        'isActive': true,
-        'createdAt': FieldValue.serverTimestamp(),
-        // Nanti bisa tambah imageUrl kalau sudah main storage
-      });
+      // Simpan ke Database Supabase
+      await _dbService.addProduct(
+        _nameController.text,
+        int.parse(_originalPriceController.text),
+        int.parse(_priceController.text),
+        int.parse(_stockController.text),
+        imageUrl,
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Menu Berhasil Ditambahkan!"),
-            backgroundColor: Colors.green,
-          ),
+          const SnackBar(content: Text("Menu Berhasil Disimpan!")),
         );
-        Navigator.pop(context); // Balik ke menu sebelumnya
+        Navigator.pop(context);
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Gagal upload: $e"),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error: $e")));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -63,106 +70,122 @@ class _AddProductScreenState extends State<AddProductScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
-      appBar: AppBar(
-        title: const Text(
-          "Tambah Menu Baru",
-          style: TextStyle(color: Colors.black),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildInputLabel("Nama Makanan"),
-              _buildTextField(
-                _nameController,
-                "Contoh: Nasi Goreng Spesial",
-                TextInputType.text,
-              ),
-
-              const SizedBox(height: 15),
-              _buildInputLabel("Harga (Rp)"),
-              _buildTextField(
-                _priceController,
-                "Contoh: 15000",
-                TextInputType.number,
-              ),
-
-              const SizedBox(height: 15),
-              _buildInputLabel("Stok Tersedia"),
-              _buildTextField(
-                _stockController,
-                "Contoh: 10",
-                TextInputType.number,
-              ),
-
-              const SizedBox(height: 30),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _uploadProduct,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFF6D00), // Warna Oren
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          "Simpan Menu",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+      appBar: AppBar(title: const Text("Tambah Menu Rescue")),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            // Upload Image
+            GestureDetector(
+              onTap: _pickImage,
+              child: Container(
+                height: 180,
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: Colors.grey.shade400),
+                  image: _selectedImage != null
+                      ? DecorationImage(
+                          image: FileImage(_selectedImage!),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
                 ),
+                child: _selectedImage == null
+                    ? const Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.camera_alt_rounded,
+                            size: 50,
+                            color: Colors.grey,
+                          ),
+                          Text(
+                            "Foto Makanan (Wajib)",
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ],
+                      )
+                    : null,
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+            ),
+            const SizedBox(height: 20),
 
-  Widget _buildInputLabel(String label) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Text(
-        label,
-        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-      ),
-    );
-  }
+            TextFormField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                labelText: "Nama Makanan",
+                border: OutlineInputBorder(),
+              ),
+              validator: (v) => v!.isEmpty ? "Isi dulu bro" : null,
+            ),
+            const SizedBox(height: 15),
 
-  Widget _buildTextField(
-    TextEditingController controller,
-    String hint,
-    TextInputType type,
-  ) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: type,
-      validator: (value) => value!.isEmpty ? "Wajib diisi" : null,
-      decoration: InputDecoration(
-        hintText: hint,
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide.none,
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 15,
-          vertical: 15,
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _originalPriceController,
+                    decoration: const InputDecoration(
+                      labelText: "Harga Asli",
+                      suffixText: "IDR",
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.number,
+                    validator: (v) => v!.isEmpty ? "Wajib" : null,
+                  ),
+                ),
+                const SizedBox(width: 15),
+                Expanded(
+                  child: TextFormField(
+                    controller: _priceController,
+                    decoration: const InputDecoration(
+                      labelText: "Harga Jual",
+                      suffixText: "IDR",
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.orange),
+                      ),
+                    ),
+                    keyboardType: TextInputType.number,
+                    validator: (v) => v!.isEmpty ? "Wajib" : null,
+                  ),
+                ),
+              ],
+            ),
+            const Padding(
+              padding: EdgeInsets.only(top: 5, bottom: 15),
+              child: Text(
+                " *Harga Jual harus lebih murah biar laku keras!",
+                style: TextStyle(color: Colors.orange, fontSize: 12),
+              ),
+            ),
+
+            TextFormField(
+              controller: _stockController,
+              decoration: const InputDecoration(
+                labelText: "Stok Tersedia",
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.number,
+              validator: (v) => v!.isEmpty ? "Wajib" : null,
+            ),
+
+            const SizedBox(height: 30),
+            ElevatedButton(
+              onPressed: _isLoading ? null : _saveProduct,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFF6D00),
+                padding: const EdgeInsets.symmetric(vertical: 15),
+              ),
+              child: _isLoading
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text(
+                      "Simpan Menu",
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+            ),
+          ],
         ),
       ),
     );

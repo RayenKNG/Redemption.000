@@ -15,6 +15,7 @@ dependencies:
   # 👇 INI KUNCINYA: Kita pake versi 7.0.0 biar gak bentrok sama Firebase
   location: ^8.0.1
   google_maps_flutter: ^2.5.3
+  supabase_flutter: ^2.3.0  # Buat koneksi ke Supabase
 
   # 👇 GANTI JADI ANGKA INI (WAJIB!!):
   firebase_core: ^4.3.0
