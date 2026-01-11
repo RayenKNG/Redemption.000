@@ -284,7 +284,7 @@ class OrdersTab extends StatelessWidget {
 }
 
 // ===============================================================
-// 3. MENU TAB (FIXED GESTURE DETECTOR)
+// 3. MENU TAB (SUDAH DIPERBAIKI TOTAL)
 // ===============================================================
 class MenuTab extends StatelessWidget {
   const MenuTab({super.key});
@@ -293,7 +293,7 @@ class MenuTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final dbService = SupabaseDatabaseService();
 
-    // ❌ DULU KAMU SALAH NARUH GESTURE DETECTOR DISINI
+    // ✅ KEMBALIKAN KE SCAFFOLD (JANGAN DIBUNGKUS GESTURE DISINI)
     return Scaffold(
       backgroundColor: kBgColor,
       appBar: AppBar(
@@ -328,7 +328,7 @@ class MenuTab extends StatelessWidget {
             itemCount: snapshot.data!.length,
             itemBuilder: (context, index) {
               final product = ProductModel.fromMap(snapshot.data![index]);
-              // Panggil Widget Kartu di bawah
+              // Panggil fungsi kartu di bawah
               return _buildProductCard(context, dbService, product);
             },
           );
@@ -337,7 +337,7 @@ class MenuTab extends StatelessWidget {
     );
   }
 
-  // 👇 LOGIC CARD + NAVIGASI ADA DI SINI (BUKAN DI ATAS)
+  // 👇 FITUR EDIT & HAPUS ADA DISINI
   Widget _buildProductCard(
     BuildContext context,
     SupabaseDatabaseService db,
@@ -350,11 +350,10 @@ class MenuTab extends StatelessWidget {
     );
     bool isOutOfStock = product.stock <= 0;
 
-    // ✅ GESTURE DETECTOR YANG BENAR ADA DISINI
-    // Dia membungkus Container kartu, bukan membungkus Scaffold.
+    // ✅ GESTURE DETECTOR ITU DISINI TEMPATNYA (Bungkus Kartu)
     return GestureDetector(
       onTap: () {
-        // Pindah ke halaman detail pas diklik
+        // Klik Kartu -> Pindah ke Detail
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -377,7 +376,7 @@ class MenuTab extends StatelessWidget {
         ),
         child: Column(
           children: [
-            // GAMBAR & STATUS
+            // 1. GAMBAR & LABEL
             Stack(
               children: [
                 Container(
@@ -445,7 +444,7 @@ class MenuTab extends StatelessWidget {
               ],
             ),
 
-            // INFO PRODUK
+            // 2. INFO & TOMBOL AKSI (EDIT + DELETE)
             Padding(
               padding: const EdgeInsets.all(15),
               child: Row(
@@ -493,11 +492,61 @@ class MenuTab extends StatelessWidget {
                       ],
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Colors.red),
-                    onPressed: () {
-                      if (product.id != null) db.deleteProduct(product.id!);
-                    },
+
+                  // 👇 INI DIA TOMBOL EDIT & HAPUS BERDAMPINGAN
+                  Row(
+                    children: [
+                      // TOMBOL EDIT (Pensil)
+                      IconButton(
+                        icon: const Icon(Icons.edit, color: Colors.blue),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  EditProductScreen(product: product),
+                            ),
+                          );
+                        },
+                      ),
+
+                      // TOMBOL HAPUS (Sampah + Pop Up)
+                      IconButton(
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: Colors.red,
+                        ),
+                        onPressed: () {
+                          // Pop-up Konfirmasi
+                          showDialog(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text("Hapus Menu?"),
+                              content: Text(
+                                "Yakin mau hapus '${product.name}'?",
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx),
+                                  child: const Text("Gak Jadi"),
+                                ),
+                                TextButton(
+                                  onPressed: () {
+                                    if (product.id != null)
+                                      db.deleteProduct(product.id!);
+                                    Navigator.pop(ctx);
+                                  },
+                                  child: const Text(
+                                    "Hapus",
+                                    style: TextStyle(color: Colors.red),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -507,9 +556,8 @@ class MenuTab extends StatelessWidget {
       ),
     );
   }
-}
+} // ===============================================================
 
-// ===============================================================
 // 4. WALLET TAB (BENDAHARA - SUDAH FIX)
 // ===============================================================
 class WalletTab extends StatelessWidget {
