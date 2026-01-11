@@ -82,7 +82,7 @@ class _MerchantMainScreenState extends State<MerchantMainScreen> {
 }
 
 // ===============================================================
-// 1. DASHBOARD TAB
+// 1. DASHBOARD TAB (UPDATE: ADA STATISTIKNYA)
 // ===============================================================
 class DashboardTab extends StatelessWidget {
   const DashboardTab({super.key});
@@ -90,56 +90,185 @@ class DashboardTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dbService = SupabaseDatabaseService();
+    final currency = NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'Rp ',
+      decimalDigits: 0,
+    );
 
     return Scaffold(
       backgroundColor: kBgColor,
       appBar: AppBar(
+        title: const Text(
+          "Dashboard Owner",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Column(
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              "Halo, Boss!",
-              style: TextStyle(color: Colors.grey, fontSize: 12),
+            // STATUS TOKO CARD
+            StreamBuilder<Map<String, dynamic>>(
+              stream: dbService.getShopStatus(),
+              builder: (context, snapshot) {
+                bool isOpen = snapshot.data?['is_open'] ?? false;
+                return Container(
+                  padding: const EdgeInsets.all(15),
+                  decoration: BoxDecoration(
+                    color: isOpen ? Colors.green[50] : Colors.red[50],
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(
+                      color: isOpen ? Colors.green : Colors.red,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        isOpen ? "TOKO SEDANG BUKA" : "TOKO TUTUP",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: isOpen ? Colors.green : Colors.red,
+                        ),
+                      ),
+                      Switch(
+                        value: isOpen,
+                        activeColor: Colors.green,
+                        onChanged: (val) => dbService.toggleShopStatus(val),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
-            Text(
-              "Roti Makmur",
-              style: TextStyle(color: kTextDark, fontWeight: FontWeight.bold),
+            const SizedBox(height: 20),
+
+            // STATISTIK REALTIME (FutureBuilder)
+            FutureBuilder<Map<String, dynamic>>(
+              future: dbService.getDashboardStats(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: LinearProgressIndicator());
+                }
+
+                final data =
+                    snapshot.data ??
+                    {
+                      'today_revenue': 0,
+                      'today_orders': 0,
+                      'total_products': 0,
+                    };
+
+                return Row(
+                  children: [
+                    // CARD 1: PENDAPATAN HARI INI
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(15),
+                        decoration: BoxDecoration(
+                          color: Colors.orange,
+                          borderRadius: BorderRadius.circular(15),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.orange.withOpacity(0.3),
+                              blurRadius: 10,
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Omzet Hari Ini",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              currency.format(data['today_revenue']),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 15),
+                    // CARD 2: TOTAL ORDER
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(15),
+                        decoration: BoxDecoration(
+                          color: Colors.blue,
+                          borderRadius: BorderRadius.circular(15),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.blue.withOpacity(0.3),
+                              blurRadius: 10,
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Total Pesanan",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              "${data['today_orders']} Order",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+
+            const SizedBox(height: 25),
+            const Text(
+              "Menu Laris Manis",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            // Placeholder Grafik/List
+            Container(
+              height: 200,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Center(
+                child: Text(
+                  "Grafik Penjualan Akan Muncul Disini",
+                  style: TextStyle(color: Colors.grey[400]),
+                ),
+              ),
             ),
           ],
         ),
-        actions: [
-          StreamBuilder<Map<String, dynamic>>(
-            stream: dbService.getShopStatus(),
-            builder: (context, snapshot) {
-              bool isOpen = false;
-              if (snapshot.hasData) isOpen = snapshot.data!['is_open'] ?? false;
-
-              return Container(
-                margin: const EdgeInsets.only(right: 15),
-                child: Row(
-                  children: [
-                    Text(
-                      isOpen ? "BUKA" : "TUTUP",
-                      style: TextStyle(
-                        color: isOpen ? Colors.green : Colors.red,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Switch(
-                      value: isOpen,
-                      activeColor: Colors.green,
-                      onChanged: (val) => dbService.toggleShopStatus(val),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ],
       ),
-      body: const Center(child: Text("Statistik Penjualan (Coming Soon)")),
     );
   }
 }
