@@ -16,6 +16,8 @@ class EditProductScreen extends StatefulWidget {
 class _EditProductScreenState extends State<EditProductScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
+  late TextEditingController
+  _descriptionController; // ✅ Added Description Controller
   late TextEditingController _originalPriceController;
   late TextEditingController _priceController;
   late TextEditingController _stockController;
@@ -31,6 +33,10 @@ class _EditProductScreenState extends State<EditProductScreen> {
     super.initState();
     // Isi form pake data lama
     _nameController = TextEditingController(text: widget.product.name);
+    // ✅ Initialize Description Controller with existing data or empty string
+    _descriptionController = TextEditingController(
+      text: widget.product.description ?? '',
+    );
     _originalPriceController = TextEditingController(
       text: widget.product.originalPrice.toString(),
     );
@@ -54,9 +60,11 @@ class _EditProductScreenState extends State<EditProductScreen> {
         ); // Upload baru kalo diganti
       }
 
+      // ✅ Updated call to match the new SupabaseDatabaseService signature
       await _db.updateProduct(
         widget.product.id!,
         _nameController.text,
+        _descriptionController.text, // ✅ Pass the description
         int.parse(_originalPriceController.text),
         int.parse(_priceController.text),
         int.parse(_stockController.text),
@@ -70,9 +78,11 @@ class _EditProductScreenState extends State<EditProductScreen> {
         Navigator.pop(context);
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -131,8 +141,22 @@ class _EditProductScreenState extends State<EditProductScreen> {
                 labelText: "Nama Menu",
                 border: OutlineInputBorder(),
               ),
+              validator: (value) =>
+                  value!.isEmpty ? 'Nama tidak boleh kosong' : null,
             ),
             const SizedBox(height: 15),
+
+            // ✅ Added Description Field
+            TextFormField(
+              controller: _descriptionController,
+              decoration: const InputDecoration(
+                labelText: "Deskripsi (Opsional)",
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+            ),
+            const SizedBox(height: 15),
+
             Row(
               children: [
                 Expanded(
@@ -143,6 +167,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
                       labelText: "Harga Asli",
                       border: OutlineInputBorder(),
                     ),
+                    validator: (value) => value!.isEmpty ? 'Wajib diisi' : null,
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -154,6 +179,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
                       labelText: "Harga Diskon",
                       border: OutlineInputBorder(),
                     ),
+                    validator: (value) => value!.isEmpty ? 'Wajib diisi' : null,
                   ),
                 ),
               ],
@@ -166,6 +192,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
                 labelText: "Stok",
                 border: OutlineInputBorder(),
               ),
+              validator: (value) => value!.isEmpty ? 'Wajib diisi' : null,
             ),
 
             const SizedBox(height: 30),
