@@ -35,11 +35,15 @@ class SupabaseDatabaseService {
 
   // Ambil Nama Produk dari ID
   Future<Map<String, dynamic>> getProductById(String productId) async {
-    return await _supabase
-        .from('products')
-        .select()
-        .eq('id', productId)
-        .single();
+    try {
+      return await _supabase
+          .from('products')
+          .select()
+          .eq('id', productId)
+          .single();
+    } catch (e) {
+      return {'name': 'Produk Tidak Ditemukan', 'image_url': null};
+    }
   }
 
   // ==========================================
@@ -92,6 +96,7 @@ class SupabaseDatabaseService {
       'product_id': productId,
       'quantity': quantity,
       'total_price': totalPrice,
+      'status': 'done', // Penjualan manual langsung selesai
       'created_at': DateTime.now().toIso8601String(),
     });
   }
@@ -124,6 +129,7 @@ class SupabaseDatabaseService {
       'product_id': productId,
       'quantity': quantity,
       'total_price': totalPrice,
+      'status': 'pending', // Status awal pesanan online
       'created_at': DateTime.now().toIso8601String(),
     });
   }
@@ -184,18 +190,34 @@ class SupabaseDatabaseService {
     final now = DateTime.now();
     final startOfDay = DateTime(now.year, now.month, now.day).toIso8601String();
 
-    final transactions = await _supabase
+    // Transaksi Hari Ini
+    final todayTransactions = await _supabase
         .from('transactions')
         .select('total_price')
         .eq('merchant_id', currentUserId)
         .gte('created_at', startOfDay);
 
+    // Semua Transaksi (Untuk Wallet)
+    final allTransactions = await _supabase
+        .from('transactions')
+        .select('total_price')
+        .eq('merchant_id', currentUserId);
+
     int todayRevenue = 0;
-    for (var t in transactions) {
+    for (var t in todayTransactions) {
       todayRevenue += (t['total_price'] as int);
     }
 
-    return {'today_revenue': todayRevenue, 'today_orders': transactions.length};
+    int totalWallet = 0;
+    for (var t in allTransactions) {
+      totalWallet += (t['total_price'] as int);
+    }
+
+    return {
+      'today_revenue': todayRevenue,
+      'today_orders': todayTransactions.length,
+      'total_wallet': totalWallet,
+    };
   }
 
   Stream<Map<String, dynamic>> getShopStatus() {
