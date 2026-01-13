@@ -240,7 +240,7 @@ class DashboardTab extends StatelessWidget {
 }
 
 // ===============================================================
-// 2. ORDERS TAB (INI YANG BARU & PENTING!)
+// 2. ORDERS TAB (UPDATE: Dengan Tombol Status)
 // ===============================================================
 class OrdersTab extends StatelessWidget {
   const OrdersTab({super.key});
@@ -259,67 +259,35 @@ class OrdersTab extends StatelessWidget {
       appBar: AppBar(
         title: const Text(
           "Pesanan Masuk",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style: TextStyle(color: Colors.black),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
       ),
-      body: RefreshIndicator(
-        onRefresh: () async => await Future.delayed(const Duration(seconds: 1)),
-        child: StreamBuilder<List<Map<String, dynamic>>>(
-          stream: db.getMerchantOrdersStream(), // Ambil data realtime
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting)
-              return const Center(child: CircularProgressIndicator());
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: db.getMerchantOrdersStream(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData || snapshot.data!.isEmpty)
+            return const Center(child: Text("Belum ada pesanan masuk."));
 
-            if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.receipt_long, size: 80, color: Colors.grey[300]),
-                    const SizedBox(height: 10),
-                    const Text(
-                      "Belum ada pesanan masuk.",
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ],
-                ),
-              );
-            }
+          return ListView.builder(
+            padding: const EdgeInsets.all(15),
+            itemCount: snapshot.data!.length,
+            itemBuilder: (context, index) {
+              final order = snapshot.data![index];
+              final status = order['status'] ?? 'pending';
 
-            return ListView.builder(
-              padding: const EdgeInsets.all(15),
-              itemCount: snapshot.data!.length,
-              itemBuilder: (context, index) {
-                final order = snapshot.data![index];
-                // Kita butuh fetch detail produk biar tau nama makanannya
-                // Karena di transaksi cuma ada ID Produk
-                return FutureBuilder<Map<String, dynamic>>(
-                  future: db.getProductById(order['product_id'].toString()),
-                  builder: (context, productSnap) {
-                    final productName = productSnap.hasData
-                        ? productSnap.data!['name']
-                        : 'Loading...';
-                    final date = DateTime.parse(order['created_at']);
+              return FutureBuilder<Map<String, dynamic>>(
+                future: db.getProductById(order['product_id'].toString()),
+                builder: (context, productSnap) {
+                  final productName = productSnap.hasData
+                      ? productSnap.data!['name']
+                      : 'Loading...';
 
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 15),
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 15),
+                    child: Padding(
                       padding: const EdgeInsets.all(15),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(15),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.grey.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                        border: Border(
-                          left: BorderSide(color: kPrimaryColor, width: 5),
-                        ), // Garis warna di kiri
-                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -327,84 +295,89 @@ class OrdersTab extends StatelessWidget {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                "Order #${order['id']}",
+                                "Order #${order['id'].toString().substring(0, 4)}",
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.grey,
                                 ),
                               ),
                               Text(
-                                DateFormat('dd MMM HH:mm').format(date),
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey,
+                                status.toUpperCase(),
+                                style: TextStyle(
+                                  color: status == 'done'
+                                      ? Colors.green
+                                      : Colors.orange,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ],
                           ),
                           const Divider(),
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: Colors.orange[50],
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.fastfood,
-                                  color: Colors.orange,
-                                ),
-                              ),
-                              const SizedBox(width: 15),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      productName,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                    Text(
-                                      "${order['quantity']} Porsi",
-                                      style: const TextStyle(
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Text(
-                                currency.format(order['total_price']),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 16,
-                                  color: Colors.green,
-                                ),
-                              ),
-                            ],
+                          Text(
+                            "$productName (${order['quantity']}x)",
+                            style: const TextStyle(fontSize: 16),
                           ),
+                          Text(
+                            currency.format(order['total_price']),
+                            style: const TextStyle(
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+
+                          // TOMBOL AKSI MERCHANT
+                          if (status == 'pending')
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue,
+                                ),
+                                onPressed: () => db.updateOrderStatus(
+                                  order['id'],
+                                  'process',
+                                ),
+                                child: const Text(
+                                  "Terima & Masak",
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                              ),
+                            ),
+                          if (status == 'process')
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                ),
+                                onPressed: () =>
+                                    db.updateOrderStatus(order['id'], 'done'),
+                                child: const Text(
+                                  "Pesanan Selesai",
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                              ),
+                            ),
                         ],
                       ),
-                    );
-                  },
-                );
-              },
-            );
-          },
-        ),
+                    ),
+                  );
+                },
+              );
+            },
+          );
+        },
       ),
     );
   }
 }
 
 // ===============================================================
-// 3. MENU TAB (CRUD Menu)
+// 3. MENU TAB (CRUD Menu) - VERSI GRID CARD
 // ===============================================================
 class MenuTab extends StatelessWidget {
+  // 👇 INI KUNCI BIAR GAK MERAH DI ATAS (_pages)
+  // Jangan dihapus "const"-nya
   const MenuTab({super.key});
 
   @override
@@ -423,10 +396,9 @@ class MenuTab extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
         backgroundColor: kPrimaryColor,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text("Tambah Menu", style: TextStyle(color: Colors.white)),
+        child: const Icon(Icons.add, color: Colors.white),
         onPressed: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const AddProductScreen()),
@@ -437,8 +409,9 @@ class MenuTab extends StatelessWidget {
         child: StreamBuilder<List<Map<String, dynamic>>>(
           stream: db.getMerchantMenuStream(),
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting)
+            if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
+            }
 
             if (!snapshot.hasData || snapshot.data!.isEmpty) {
               return ListView(
@@ -453,13 +426,21 @@ class MenuTab extends StatelessWidget {
               );
             }
 
-            return ListView.builder(
+            // TAMPILAN GRID (KARTU)
+            return GridView.builder(
               padding: const EdgeInsets.all(15),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2, // 2 Kolom
+                childAspectRatio:
+                    0.70, // Rasio Lebar : Tinggi (Disesuaikan biar muat tombol)
+                crossAxisSpacing: 15,
+                mainAxisSpacing: 15,
+              ),
               itemCount: snapshot.data!.length,
               itemBuilder: (context, index) {
                 final product = ProductModel.fromMap(snapshot.data![index]);
+
                 return Container(
-                  margin: const EdgeInsets.only(bottom: 15),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(15),
@@ -470,75 +451,150 @@ class MenuTab extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.all(10),
-                    leading: ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: product.imageUrl != null
-                          ? Image.network(
-                              product.imageUrl!,
-                              width: 70,
-                              height: 70,
-                              fit: BoxFit.cover,
-                            )
-                          : Container(
-                              color: Colors.grey[200],
-                              width: 70,
-                              height: 70,
-                              child: const Icon(
-                                Icons.fastfood,
-                                color: Colors.grey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 1. GAMBAR
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(15),
+                          ),
+                          child: product.imageUrl != null
+                              ? Image.network(
+                                  product.imageUrl!,
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                )
+                              : Container(
+                                  color: Colors.grey[200],
+                                  width: double.infinity,
+                                  child: const Icon(
+                                    Icons.fastfood,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                        ),
+                      ),
+
+                      // 2. TEXT INFO
+                      Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              product.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                    ),
-                    title: Text(
-                      product.name,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 5),
-                        Text(
-                          currency.format(product.price),
-                          style: const TextStyle(
-                            color: kPrimaryColor,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          "Stok: ${product.stock}",
-                          style: TextStyle(
-                            color: product.stock < 5 ? Colors.red : Colors.grey,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit, color: Colors.blue),
-                          onPressed: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  EditProductScreen(product: product),
+                            const SizedBox(height: 4),
+                            Text(
+                              currency.format(product.price),
+                              style: const TextStyle(
+                                color: kPrimaryColor,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
                             ),
-                          ),
+                            const SizedBox(height: 2),
+                            Text(
+                              "Stok: ${product.stock}",
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: product.stock == 0
+                                    ? Colors.red
+                                    : Colors.grey,
+                              ),
+                            ),
+                          ],
                         ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.delete_outline,
-                            color: Colors.red,
-                          ),
-                          onPressed: () {
-                            db.deleteProduct(product.id!);
-                          },
+                      ),
+
+                      // 3. TOMBOL EDIT & HAPUS
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 5,
                         ),
-                      ],
-                    ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            // Tombol Edit (Kecil)
+                            InkWell(
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      EditProductScreen(product: product),
+                                ),
+                              ),
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue[50],
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.edit,
+                                  size: 18,
+                                  color: Colors.blue,
+                                ),
+                              ),
+                            ),
+
+                            // Tombol Hapus (Kecil)
+                            InkWell(
+                              onTap: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    title: const Text("Hapus Menu?"),
+                                    content: Text(
+                                      "Yakin mau hapus ${product.name}?",
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(ctx),
+                                        child: const Text("Batal"),
+                                      ),
+                                      ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.red,
+                                        ),
+                                        onPressed: () async {
+                                          Navigator.pop(ctx);
+                                          await db.deleteProduct(product.id!);
+                                        },
+                                        child: const Text(
+                                          "Hapus",
+                                          style: TextStyle(color: Colors.white),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: Colors.red[50],
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.delete,
+                                  size: 18,
+                                  color: Colors.red,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 );
               },
@@ -551,9 +607,10 @@ class MenuTab extends StatelessWidget {
 }
 
 // ===============================================================
-// 4. PROFILE TAB
+// 4. PROFILE TAB (Pastikan ini ada di paling bawah file)
 // ===============================================================
 class ProfileTab extends StatelessWidget {
+  // PENTING: Harus ada 'const' di sini biar gak error di _pages
   const ProfileTab({super.key});
 
   @override
@@ -576,14 +633,22 @@ class ProfileTab extends StatelessWidget {
             ),
             const SizedBox(height: 30),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
               onPressed: () async {
+                // Logout dan kembali ke Login
                 await AuthService().signOut();
-                Navigator.pushReplacementNamed(context, '/login');
+                if (context.mounted) {
+                  Navigator.pushReplacementNamed(context, '/login');
+                }
               },
-              child: const Text(
-                "Logout",
-                style: TextStyle(color: Colors.white),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                child: Text("Logout", style: TextStyle(color: Colors.white)),
               ),
             ),
           ],
