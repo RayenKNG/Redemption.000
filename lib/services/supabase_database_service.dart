@@ -227,4 +227,25 @@ class SupabaseDatabaseService {
           .eq('id', currentUserId);
     }
   }
+
+  // Update Status Transaksi
+  Future<void> updateOrderStatus(String orderId, String newStatus) async {
+    await _supabase
+        .from('transactions')
+        .update({'status': newStatus})
+        .eq('id', orderId);
+  }
+
+  // ==========================================
+  // 7. FITUR USER (PESANAN SAYA)
+  // ==========================================
+
+  // Ambil list transaksi berdasarkan ID Pembeli (User Login)
+  Stream<List<Map<String, dynamic>>> getUserOrdersStream() {
+    return _supabase
+        .from('transactions')
+        .stream(primaryKey: ['id'])
+        .eq('buyer_id', currentUserId)
+        .order('created_at', ascending: false);
+  }
 }
