@@ -23,6 +23,9 @@ void main() async {
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50ZHJybnJoZ3duanZ6bmJvZG5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgwNTQ0MDYsImV4cCI6MjA4MzYzMDQwNn0.-zkqv8PshNRTFLZVhxaUyTIxTb7bzHoO8gxrMdF1uVc',
   );
 
+  // Init Notifikasi
+  await NotificationService().init();
+
   runApp(const MyApp());
 }
 
