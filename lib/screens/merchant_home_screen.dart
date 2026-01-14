@@ -1,5 +1,5 @@
+import 'dart:async'; // Tambah ini buat StreamSubscription
 import 'package:flutter/material.dart';
-import 'dart:ui'; // Untuk efek visual modern
 import 'package:saveplate/screens/add_product_screen.dart';
 import 'package:saveplate/screens/edit_product_screen.dart';
 import 'package:saveplate/services/supabase_database_service.dart';
@@ -15,37 +15,107 @@ class MerchantMainScreen extends StatefulWidget {
 
 class _MerchantMainScreenState extends State<MerchantMainScreen> {
   int _currentIndex = 0;
+  
+  // Variabel buat Notifikasi
+  StreamSubscription? _orderSubscription;
+  int? _previousOrderCount;
+  int? _previousWalletAmount;
+  bool _isFirstLoad = true; // Biar pas baru buka gak langsung bunyi
 
-  // List Halaman (5 Tab Utama)
   final List<Widget> _pages = [
-    const DashboardTab(), // Tab 0: Ringkasan
-    const OrdersTab(),    // Tab 1: Manajemen Pesanan (Penting!)
-    const MenuTab(),      // Tab 2: Kelola Menu
-    const WalletTab(),    // Tab 3: Keuangan
-    const ProfileTab(),   // Tab 4: Akun
+    const DashboardTab(),
+    const OrdersTab(),
+    const MenuTab(),
+    const WalletTab(),
+    const ProfileTab(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _setupNotifications();
+  }
+
+  @override
+  void dispose() {
+    _orderSubscription?.cancel(); // Matikan listener pas keluar biar hemat memori
+    super.dispose();
+  }
+
+  // 🔥 LOGIC NOTIFIKASI MERCHANT
+  void _setupNotifications() {
+    final db = SupabaseDatabaseService();
+    
+    // Kita dengerin stream orderan
+    _orderSubscription = db.getMerchantOrdersStream().listen((orders) {
+      // 1. Hitung Saldo Saat Ini (Cuma yang status 'done')
+      int currentWallet = 0;
+      for (var o in orders) {
+        if (o['status'] == 'done') currentWallet += (o['total_price'] as int);
+      }
+
+      // 2. Hitung Jumlah Pesanan Saat Ini
+      int currentOrderCount = orders.length;
+
+      // 3. Logic Notifikasi (Skip pas loading pertama)
+      if (!_isFirstLoad) {
+        
+        // Cek Pesanan Baru (Jumlah nambah)
+        if (_previousOrderCount != null && currentOrderCount > _previousOrderCount!) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(children: [Icon(Icons.notifications_active, color: Colors.white), SizedBox(width: 10), Text("TING! Ada Pesanan Baru Masuk! 📦")]),
+              backgroundColor: Colors.blue,
+              behavior: SnackBarBehavior.floating,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+
+        // Cek Uang Masuk (Saldo nambah)
+        if (_previousWalletAmount != null && currentWallet > _previousWalletAmount!) {
+          final diff = currentWallet - _previousWalletAmount!;
+          final f = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(children: [const Icon(Icons.monetization_on, color: Colors.white), const SizedBox(width: 10), Text("CHING! Uang Masuk ${f.format(diff)} 💰")]),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+
+      // Update data terakhir
+      setState(() {
+        _previousOrderCount = currentOrderCount;
+        _previousWalletAmount = currentWallet;
+        _isFirstLoad = false; // Loading pertama selesai
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBody: true,
-      backgroundColor: const Color(0xFFF0F2F5), // Background abu-abu soft
+      backgroundColor: const Color(0xFFF0F2F5),
       body: _pages[_currentIndex],
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: ClipRRect(
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           child: BottomNavigationBar(
             currentIndex: _currentIndex,
             onTap: (index) => setState(() => _currentIndex = index),
-            selectedItemColor: const Color(0xFFFF6D00), // Warna Orange
+            selectedItemColor: const Color(0xFFFF6D00),
             unselectedItemColor: Colors.grey,
             backgroundColor: Colors.white,
-            type: BottomNavigationBarType.fixed, // Wajib fixed karena item > 3
+            type: BottomNavigationBarType.fixed,
             elevation: 0,
             items: const [
               BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), label: "Dash"),
@@ -70,44 +140,19 @@ class DashboardTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final db = SupabaseDatabaseService();
-    
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F2F5),
-      appBar: AppBar(
-        title: const Text("Dashboard Toko", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          StreamBuilder<Map<String, dynamic>>(
-            stream: db.getShopStatus(),
-            builder: (ctx, snap) {
-              bool isOpen = snap.data?['is_open'] ?? false;
-              return Row(
-                children: [
-                  Text(isOpen ? "BUKA" : "TUTUP", style: TextStyle(color: isOpen ? Colors.green : Colors.red, fontWeight: FontWeight.bold, fontSize: 12)),
-                  Switch(value: isOpen, activeColor: Colors.green, onChanged: (v) => db.toggleShopStatus(v)),
-                  const SizedBox(width: 10),
-                ],
-              );
-            },
-          )
-        ],
-      ),
+      appBar: AppBar(title: const Text("Dashboard"), elevation: 0),
       body: FutureBuilder<Map<String, dynamic>>(
         future: db.getDashboardStats(),
         builder: (context, snap) {
-          final data = snap.data ?? {'total_orders': 0};
+          final data = snap.data ?? {'total_orders': 0, 'total_wallet': 0};
           return Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
               children: [
-                Row(
-                  children: [
-                    Expanded(child: _buildStatCard("Total Pesanan", "${data['total_orders']}", Icons.shopping_bag, Colors.blue)),
-                    const SizedBox(width: 15),
-                    Expanded(child: _buildStatCard("Rating", "4.8", Icons.star, Colors.orange)),
-                  ],
-                ),
+                _buildStatCard("Total Pesanan", "${data['total_orders']}", Icons.shopping_bag, Colors.blue),
+                const SizedBox(height: 15),
+                _buildStatCard("Pendapatan", "Rp ${NumberFormat('#,###', 'id_ID').format(data['total_wallet'])}", Icons.account_balance_wallet, Colors.green),
               ],
             ),
           );
@@ -119,14 +164,12 @@ class DashboardTab extends StatelessWidget {
   Widget _buildStatCard(String title, String val, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15), boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 5)]),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15)),
+      child: Row(
         children: [
-          Icon(icon, color: color, size: 30),
-          const SizedBox(height: 10),
-          Text(val, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-          Text(title, style: const TextStyle(color: Colors.grey)),
+          Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: color)),
+          const SizedBox(width: 15),
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(val, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)), Text(title, style: const TextStyle(color: Colors.grey))]),
         ],
       ),
     );
@@ -134,14 +177,13 @@ class DashboardTab extends StatelessWidget {
 }
 
 // ==========================================
-// 2. ORDERS TAB (INI YANG LU CARI!!) 🔥
+// 2. ORDERS TAB (TAB UTAMA TRANSAKSI)
 // ==========================================
 class OrdersTab extends StatelessWidget {
   const OrdersTab({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // DefaultTabController untuk mengatur 3 tab di atas
     return DefaultTabController(
       length: 3,
       child: Scaffold(
@@ -154,18 +196,17 @@ class OrdersTab extends StatelessWidget {
             unselectedLabelColor: Colors.grey,
             indicatorColor: Color(0xFFFF6D00),
             tabs: [
-              Tab(text: "Masuk"),   // Pending
-              Tab(text: "Proses"),  // Dikemas
-              Tab(text: "Selesai"), // Done
+              Tab(text: "Masuk"),   
+              Tab(text: "Proses"),  
+              Tab(text: "Selesai"), 
             ],
           ),
         ),
-        // Menampilkan list order berdasarkan statusnya
         body: const TabBarView(
           children: [
-            OrderListByStatus(statusFilter: 'pending'),
-            OrderListByStatus(statusFilter: 'process'),
-            OrderListByStatus(statusFilter: 'done'),
+            OrderListByStatus(statusFilter: 'pending'), 
+            OrderListByStatus(statusFilter: 'process'), 
+            OrderListByStatus(statusFilter: 'done'),    
           ],
         ),
       ),
@@ -173,7 +214,9 @@ class OrdersTab extends StatelessWidget {
   }
 }
 
-// Widget Khusus List Pesanan Per Status
+// ==========================================
+// WIDGET LIST PESANAN (LOGIC PINDAH TAB)
+// ==========================================
 class OrderListByStatus extends StatefulWidget {
   final String statusFilter;
   const OrderListByStatus({super.key, required this.statusFilter});
@@ -184,20 +227,28 @@ class OrderListByStatus extends StatefulWidget {
 
 class _OrderListByStatusState extends State<OrderListByStatus> {
   final db = SupabaseDatabaseService();
-  String? _loadingId; // Untuk loading per item
+  String? _loadingId;
 
-  // Fungsi Pindah Tab (Update Status)
-  Future<void> _updateStatus(String id, String nextStatus) async {
-    setState(() => _loadingId = id); // Nyalakan loading
-    await db.updateOrderStatus(id, nextStatus);
-    if (mounted) {
-      setState(() => _loadingId = null); // Matikan loading
-      // Pesan Sukses
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(nextStatus == 'process' ? "Pesanan Diproses!" : "Pesanan Selesai!"),
-        backgroundColor: Colors.green,
-        duration: const Duration(milliseconds: 800),
-      ));
+  // Fungsi saat tombol ditekan
+  Future<void> _processOrder(String id, String nextStatus) async {
+    setState(() => _loadingId = id); 
+    
+    try {
+      await db.updateOrderStatus(id, nextStatus);
+      if (mounted) {
+        // Notif manual pas tombol ditekan
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(nextStatus == 'process' ? "Pesanan Diproses! Pindah ke tab Proses." : "Pesanan Selesai! Saldo Bertambah."),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 1),
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Gagal: $e"), backgroundColor: Colors.red));
+      }
+    } finally {
+      if (mounted) setState(() => _loadingId = null); 
     }
   }
 
@@ -206,14 +257,12 @@ class _OrderListByStatusState extends State<OrderListByStatus> {
     final f = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: db.getMerchantOrdersStream(),
+      stream: db.getMerchantOrdersStream(), 
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-        
-        // FILTER DATA (Magic-nya di sini)
-        // Kalau tab 'Masuk', cuma tampilkan data yang statusnya 'pending'
+
         final allOrders = snap.data ?? [];
         final orders = allOrders.where((o) {
           final status = o['status'] ?? 'pending';
@@ -254,7 +303,6 @@ class _OrderListByStatusState extends State<OrderListByStatus> {
                     padding: const EdgeInsets.all(15),
                     child: Column(
                       children: [
-                        // Detail Produk
                         Row(
                           children: [
                             ClipRRect(
@@ -277,30 +325,27 @@ class _OrderListByStatusState extends State<OrderListByStatus> {
                         ),
                         const SizedBox(height: 15),
                         
-                        // TOMBOL AKSI (Beda Tiap Tab)
+                        // TOMBOL LOGIC (BERUBAH SESUAI TAB)
                         SizedBox(
                           width: double.infinity,
                           child: _loadingId == orderId
-                            ? const Center(child: SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)))
-                            : widget.statusFilter == 'pending'
-                              // Tombol Tab Masuk -> Terima
-                              ? ElevatedButton(
-                                  onPressed: () => _updateStatus(orderId, 'process'),
-                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, padding: const EdgeInsets.symmetric(vertical: 12)),
-                                  child: const Text("TERIMA ORDER", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                                )
-                              : widget.statusFilter == 'process'
-                                // Tombol Tab Proses -> Selesai
-                                ? ElevatedButton(
-                                    onPressed: () => _updateStatus(orderId, 'done'),
-                                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green, padding: const EdgeInsets.symmetric(vertical: 12)),
-                                    child: const Text("SELESAIKAN ORDER", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                                  )
-                                // Tombol Tab Selesai -> Info
-                                : const OutlinedButton(
-                                    onPressed: null,
-                                    child: Text("Transaksi Berhasil ✅", style: TextStyle(color: Colors.green)),
-                                  ),
+                              ? const Center(child: SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)))
+                              : widget.statusFilter == 'pending'
+                                  ? ElevatedButton(
+                                      onPressed: () => _processOrder(orderId, 'process'),
+                                      style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+                                      child: const Text("TERIMA ORDER", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                    )
+                                  : widget.statusFilter == 'process'
+                                      ? ElevatedButton(
+                                          onPressed: () => _processOrder(orderId, 'done'),
+                                          style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                                          child: const Text("SELESAIKAN ORDER", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                        )
+                                      : const OutlinedButton(
+                                          onPressed: null,
+                                          child: Text("Transaksi Berhasil ✅", style: TextStyle(color: Colors.green)),
+                                        ),
                         ),
                       ],
                     ),
@@ -326,8 +371,7 @@ class MenuTab extends StatelessWidget {
     final f = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F2F5),
-      appBar: AppBar(title: const Text("Menu Saya", style: TextStyle(color: Colors.black)), backgroundColor: Colors.white, elevation: 0),
+      appBar: AppBar(title: const Text("Menu Saya"), elevation: 0),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: const Color(0xFFFF6D00),
         onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AddProductScreen())),
@@ -373,7 +417,7 @@ class MenuTab extends StatelessWidget {
 }
 
 // ==========================================
-// 4. WALLET TAB
+// 4. WALLET & PROFILE (SISA TAB)
 // ==========================================
 class WalletTab extends StatelessWidget {
   const WalletTab({super.key});
@@ -383,7 +427,6 @@ class WalletTab extends StatelessWidget {
     final f = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F2F5),
       appBar: AppBar(title: const Text("Dompet"), backgroundColor: Colors.white, elevation: 0, foregroundColor: Colors.black),
       body: Padding(
         padding: const EdgeInsets.all(20),
@@ -420,9 +463,6 @@ class WalletTab extends StatelessWidget {
   }
 }
 
-// ==========================================
-// 5. PROFILE TAB
-// ==========================================
 class ProfileTab extends StatelessWidget {
   const ProfileTab({super.key});
   @override

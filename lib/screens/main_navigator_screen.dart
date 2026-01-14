@@ -1,3 +1,4 @@
+import 'dart:async'; // ✅ Wajib ada buat Notifikasi Stream
 import 'package:flutter/material.dart';
 import 'dart:ui'; // Buat Efek Kaca (Glassmorphism)
 import 'package:intl/intl.dart';
@@ -8,7 +9,7 @@ import 'package:saveplate/screens/product_detail_screen.dart';
 import 'package:saveplate/screens/map_hunter_screen.dart';
 
 // ==========================================
-// 1. NAVIGASI UTAMA (USER - GLASSMORPHISM)
+// 1. NAVIGASI UTAMA (USER - DENGAN NOTIFIKASI)
 // ==========================================
 
 class MainNavigatorScreenUser extends StatefulWidget {
@@ -21,12 +22,100 @@ class MainNavigatorScreenUser extends StatefulWidget {
 class _MainNavigatorScreenState extends State<MainNavigatorScreenUser> {
   int _selectedIndex = 0;
 
+  // 🔥 VARIABEL NOTIFIKASI REAL-TIME 🔥
+  StreamSubscription? _userOrderSub;
+  List<String> _finishedOrderIds = []; // Daftar ID pesanan yang udah selesai (biar gak notif 2x)
+  int? _previousOrderCount; // Jumlah orderan sebelumnya (buat deteksi order baru)
+  bool _isFirstLoad = true; // Biar pas baru buka aplikasi gak langsung bunyi
+
   // LIST HALAMAN
   final List<Widget> _pages = [
-    const UltimateHomeScreen(), // Home Keren
-    const UserOrdersTab(),      // ✅ HALAMAN PESANAN YANG JALAN (GAK CUMA TEKS)
-    const UserProfileTab(),     // Profil Premium
+    const UltimateHomeScreen(), 
+    const UserOrdersTab(),      
+    const UserProfileTab(),     
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _setupUserNotifications(); // 👂 Pasang "Telinga" pas aplikasi dibuka
+  }
+
+  @override
+  void dispose() {
+    _userOrderSub?.cancel(); // 🔇 Lepas "Telinga" pas aplikasi ditutup biar hemat baterai
+    super.dispose();
+  }
+
+  // LOGIKA NOTIFIKASI CANGGIH
+  void _setupUserNotifications() {
+    final db = SupabaseDatabaseService();
+    
+    // Dengerin Stream Orderan User
+    _userOrderSub = db.getUserOrdersStream().listen((orders) {
+      
+      if (!_isFirstLoad) { // Jangan notif pas baru banget loading awal
+        
+        // 1. CEK: Apakah User Baru Aja Beli? (Jumlah order nambah)
+        if (_previousOrderCount != null && orders.length > _previousOrderCount!) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.shopping_bag, color: Colors.white), 
+                  SizedBox(width: 10), 
+                  Expanded(child: Text("Pesanan Berhasil Dibuat! Menunggu konfirmasi Merchant.")),
+                ]
+              ),
+              backgroundColor: Colors.blue,
+              behavior: SnackBarBehavior.floating,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+
+        // 2. CEK: Apakah Ada Pesanan yang Selesai? (Status jadi 'done')
+        for (var o in orders) {
+          // Kalau statusnya 'done' DAN ID-nya belum pernah kita notif sebelumnya
+          if (o['status'] == 'done' && !_finishedOrderIds.contains(o['id'].toString())) {
+            
+            // Munculin Notif HORE
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.white), 
+                    SizedBox(width: 10), 
+                    Expanded(child: Text("HORE! Pesanan kamu sudah siap! Silakan ambil makanannya. 🍽️")),
+                  ]
+                ),
+                backgroundColor: Colors.green,
+                behavior: SnackBarBehavior.floating,
+                duration: Duration(seconds: 5),
+              ),
+            );
+
+            // Tandai ID ini biar gak notif lagi
+            _finishedOrderIds.add(o['id'].toString());
+          }
+        }
+
+      } else {
+        // LOAD PERTAMA: Cuma catat data awal, jangan notif dulu
+        for (var o in orders) {
+          if (o['status'] == 'done') _finishedOrderIds.add(o['id'].toString());
+        }
+        _isFirstLoad = false;
+      }
+
+      // Update Data Terakhir
+      if (mounted) {
+        setState(() {
+          _previousOrderCount = orders.length;
+        });
+      }
+    });
+  }
 
   void _onItemTapped(int index) {
     setState(() => _selectedIndex = index);
@@ -35,7 +124,7 @@ class _MainNavigatorScreenState extends State<MainNavigatorScreenUser> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBody: true, // Biar background nembus ke bawah navbar
+      extendBody: true, 
       body: _pages[_selectedIndex],
 
       // --- TOMBOL TENGAH (HUNTER) ---
@@ -87,6 +176,7 @@ class _MainNavigatorScreenState extends State<MainNavigatorScreenUser> {
 
   Widget _buildNavIcon(IconData icon, int index, String label) {
     bool isSelected = _selectedIndex == index;
+    // Index 3 (Notif) dimatiin onTap-nya karena cuma hiasan visual di sini (notif udah pake SnackBar)
     return InkWell(
       onTap: () => index == 3 ? {} : _onItemTapped(index),
       child: Column(
@@ -193,9 +283,8 @@ class UltimateHomeScreen extends StatelessWidget {
 }
 
 // ==========================================
-// 📦 3. HALAMAN PESANAN (FITUR BARU)
+// 📦 3. HALAMAN PESANAN
 // ==========================================
-// (Ini yang gua tambahin biar gak cuma teks doang)
 
 class UserOrdersTab extends StatelessWidget {
   const UserOrdersTab({super.key});
@@ -220,6 +309,11 @@ class UserOrdersTab extends StatelessWidget {
             itemBuilder: (context, index) {
               final order = snapshot.data![index];
               final status = order['status'] ?? 'pending';
+              
+              // Warna Status
+              Color statusColor = Colors.orange;
+              if (status == 'process') statusColor = Colors.blue;
+              if (status == 'done') statusColor = Colors.green;
 
               return FutureBuilder<Map<String, dynamic>>(
                 future: db.getProductById(order['product_id'].toString()),
@@ -231,9 +325,12 @@ class UserOrdersTab extends StatelessWidget {
                     margin: const EdgeInsets.only(bottom: 10),
                     decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15), boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 5)]),
                     child: ListTile(
-                      leading: prodImage != null ? Image.network(prodImage, width: 50, fit: BoxFit.cover) : const Icon(Icons.fastfood),
+                      leading: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: prodImage != null ? Image.network(prodImage, width: 50, height: 50, fit: BoxFit.cover) : const Icon(Icons.fastfood),
+                      ),
                       title: Text(prodName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text("Status: ${status.toUpperCase()}"),
+                      subtitle: Text("Status: ${status.toUpperCase()}", style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 12)),
                       trailing: Text(currency.format(order['total_price']), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
                     ),
                   );
@@ -248,7 +345,7 @@ class UserOrdersTab extends StatelessWidget {
 }
 
 // ==========================================
-// 4. HALAMAN PROFIL (PREMIUM)
+// 4. HALAMAN PROFIL
 // ==========================================
 
 class UserProfileTab extends StatelessWidget {
