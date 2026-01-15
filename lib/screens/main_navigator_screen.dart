@@ -1,15 +1,16 @@
-import 'dart:async'; // ✅ Wajib ada buat Notifikasi Stream
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'dart:ui'; // Buat Efek Kaca (Glassmorphism)
+import 'dart:ui'; // Buat Efek Kaca
 import 'package:intl/intl.dart';
 import 'package:saveplate/services/auth_service.dart';
 import 'package:saveplate/services/supabase_database_service.dart';
 import 'package:saveplate/models/product_model.dart';
 import 'package:saveplate/screens/product_detail_screen.dart';
 import 'package:saveplate/screens/map_hunter_screen.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart'; // ✅ IMPORT INI PENTING
 
 // ==========================================
-// 1. NAVIGASI UTAMA (USER - DENGAN NOTIFIKASI)
+// 1. NAVIGASI UTAMA (USER - DENGAN NOTIFIKASI GABUNGAN)
 // ==========================================
 
 class MainNavigatorScreenUser extends StatefulWidget {
@@ -22,93 +23,153 @@ class MainNavigatorScreenUser extends StatefulWidget {
 class _MainNavigatorScreenState extends State<MainNavigatorScreenUser> {
   int _selectedIndex = 0;
 
-  // 🔥 VARIABEL NOTIFIKASI REAL-TIME 🔥
+  // 🔥 SETUP NOTIFIKASI LOKAL 🔥
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
+
+  // 🔥 VARIABEL STREAM 🔥
   StreamSubscription? _userOrderSub;
-  List<String> _finishedOrderIds = []; // Daftar ID pesanan yang udah selesai (biar gak notif 2x)
-  int? _previousOrderCount; // Jumlah orderan sebelumnya (buat deteksi order baru)
-  bool _isFirstLoad = true; // Biar pas baru buka aplikasi gak langsung bunyi
+  final List<String> _finishedOrderIds = [];
+  int? _previousOrderCount;
+  bool _isFirstLoad = true;
 
   // LIST HALAMAN
   final List<Widget> _pages = [
-    const UltimateHomeScreen(), 
-    const UserOrdersTab(),      
-    const UserProfileTab(),     
+    const UltimateHomeScreen(),
+    const UserOrdersTab(),
+    const UserProfileTab(),
   ];
 
   @override
   void initState() {
     super.initState();
-    _setupUserNotifications(); // 👂 Pasang "Telinga" pas aplikasi dibuka
+    _initSystemNotifications(); // 1. Init Notifikasi HP
+    _setupUserNotifications(); // 2. Init Listener Database
   }
 
   @override
   void dispose() {
-    _userOrderSub?.cancel(); // 🔇 Lepas "Telinga" pas aplikasi ditutup biar hemat baterai
+    _userOrderSub?.cancel();
     super.dispose();
   }
 
-  // LOGIKA NOTIFIKASI CANGGIH
+  // ==========================================
+  // 🔔 1. SETUP NOTIFIKASI SISTEM (BIAR MUNCUL DI HP)
+  // ==========================================
+  Future<void> _initSystemNotifications() async {
+    // Android Setup
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    // iOS Setup
+    final DarwinInitializationSettings initializationSettingsDarwin =
+        DarwinInitializationSettings(
+          requestAlertPermission: true,
+          requestBadgePermission: true,
+          requestSoundPermission: true,
+        );
+
+    final InitializationSettings initializationSettings =
+        InitializationSettings(
+          android: initializationSettingsAndroid,
+          iOS: initializationSettingsDarwin,
+        );
+
+    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+
+    // Minta Izin Android 13+ (Penting!)
+    final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
+        flutterLocalNotificationsPlugin
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >();
+
+    if (androidImplementation != null) {
+      await androidImplementation.requestNotificationsPermission();
+    }
+  }
+
+  // Fungsi buat Nampilin Notif di Layar HP (System Tray)
+  Future<void> _showSystemNotification(String title, String body) async {
+    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
+          'saveplate_channel', // ID Channel
+          'SavePlate Notif', // Nama Channel
+          importance: Importance.max,
+          priority: Priority.high,
+          showWhen: true,
+          icon: '@mipmap/ic_launcher',
+        );
+    const NotificationDetails platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics,
+    );
+
+    // ID Random biar notif bisa numpuk
+    int randomId = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+    await flutterLocalNotificationsPlugin.show(
+      randomId,
+      title,
+      body,
+      platformChannelSpecifics,
+    );
+  }
+
+  // ==========================================
+  // 👂 2. LOGIKA DATABASE LISTENER
+  // ==========================================
   void _setupUserNotifications() {
     final db = SupabaseDatabaseService();
-    
-    // Dengerin Stream Orderan User
+
     _userOrderSub = db.getUserOrdersStream().listen((orders) {
-      
-      if (!_isFirstLoad) { // Jangan notif pas baru banget loading awal
-        
-        // 1. CEK: Apakah User Baru Aja Beli? (Jumlah order nambah)
-        if (_previousOrderCount != null && orders.length > _previousOrderCount!) {
+      if (!_isFirstLoad) {
+        // A. CEK ORDER BARU (Notif: "Pesanan Dibuat")
+        if (_previousOrderCount != null &&
+            orders.length > _previousOrderCount!) {
+          // 1. Muncul di HP (Atas Layar)
+          _showSystemNotification(
+            "Pesanan Berhasil! 🛒",
+            "Menunggu konfirmasi Merchant...",
+          );
+
+          // 2. Muncul di Aplikasi (SnackBar)
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Row(
-                children: [
-                  Icon(Icons.shopping_bag, color: Colors.white), 
-                  SizedBox(width: 10), 
-                  Expanded(child: Text("Pesanan Berhasil Dibuat! Menunggu konfirmasi Merchant.")),
-                ]
-              ),
+              content: Text("Pesanan Berhasil Dibuat!"),
               backgroundColor: Colors.blue,
-              behavior: SnackBarBehavior.floating,
-              duration: Duration(seconds: 3),
             ),
           );
         }
 
-        // 2. CEK: Apakah Ada Pesanan yang Selesai? (Status jadi 'done')
+        // B. CEK ORDER SELESAI (Notif: "Makanan Siap")
         for (var o in orders) {
-          // Kalau statusnya 'done' DAN ID-nya belum pernah kita notif sebelumnya
-          if (o['status'] == 'done' && !_finishedOrderIds.contains(o['id'].toString())) {
-            
-            // Munculin Notif HORE
+          if (o['status'] == 'done' &&
+              !_finishedOrderIds.contains(o['id'].toString())) {
+            // 1. Muncul di HP (Atas Layar)
+            _showSystemNotification(
+              "HORE! Makanan Siap 🍽️",
+              "Pesanan kamu sudah siap diambil. Selamat makan!",
+            );
+
+            // 2. Muncul di Aplikasi (SnackBar)
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Row(
-                  children: [
-                    Icon(Icons.check_circle, color: Colors.white), 
-                    SizedBox(width: 10), 
-                    Expanded(child: Text("HORE! Pesanan kamu sudah siap! Silakan ambil makanannya. 🍽️")),
-                  ]
-                ),
+                content: Text("HORE! Pesanan kamu sudah siap!"),
                 backgroundColor: Colors.green,
-                behavior: SnackBarBehavior.floating,
-                duration: Duration(seconds: 5),
               ),
             );
 
-            // Tandai ID ini biar gak notif lagi
             _finishedOrderIds.add(o['id'].toString());
           }
         }
-
       } else {
-        // LOAD PERTAMA: Cuma catat data awal, jangan notif dulu
+        // Load Pertama: Catat data awal aja
         for (var o in orders) {
           if (o['status'] == 'done') _finishedOrderIds.add(o['id'].toString());
         }
         _isFirstLoad = false;
       }
 
-      // Update Data Terakhir
       if (mounted) {
         setState(() {
           _previousOrderCount = orders.length;
@@ -124,15 +185,19 @@ class _MainNavigatorScreenState extends State<MainNavigatorScreenUser> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBody: true, 
+      extendBody: true,
       body: _pages[_selectedIndex],
 
       // --- TOMBOL TENGAH (HUNTER) ---
       floatingActionButton: Container(
-        height: 70, width: 70,
+        height: 70,
+        width: 70,
         margin: const EdgeInsets.only(bottom: 10),
         child: FloatingActionButton(
-          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const MapHunterScreen())),
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const MapHunterScreen()),
+          ),
           backgroundColor: const Color(0xFF2ECC71),
           elevation: 10,
           shape: const CircleBorder(),
@@ -140,7 +205,14 @@ class _MainNavigatorScreenState extends State<MainNavigatorScreenUser> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: const [
               Icon(Icons.map_outlined, size: 28, color: Colors.white),
-              Text("HUNT", style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.white)),
+              Text(
+                "HUNT",
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                ),
+              ),
             ],
           ),
         ),
@@ -176,16 +248,28 @@ class _MainNavigatorScreenState extends State<MainNavigatorScreenUser> {
 
   Widget _buildNavIcon(IconData icon, int index, String label) {
     bool isSelected = _selectedIndex == index;
-    // Index 3 (Notif) dimatiin onTap-nya karena cuma hiasan visual di sini (notif udah pake SnackBar)
     return InkWell(
       onTap: () => index == 3 ? {} : _onItemTapped(index),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: isSelected ? const Color(0xFF2ECC71) : Colors.grey.shade400, size: 26),
+          Icon(
+            icon,
+            color: isSelected ? const Color(0xFF2ECC71) : Colors.grey.shade400,
+            size: 26,
+          ),
           const SizedBox(height: 4),
-          Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isSelected ? const Color(0xFF2ECC71) : Colors.grey.shade400)),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: isSelected
+                  ? const Color(0xFF2ECC71)
+                  : Colors.grey.shade400,
+            ),
+          ),
         ],
       ),
     );
@@ -202,7 +286,11 @@ class UltimateHomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final db = SupabaseDatabaseService();
-    final currency = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+    final currency = NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'Rp ',
+      decimalDigits: 0,
+    );
 
     return Scaffold(
       backgroundColor: const Color(0xFFF0F2F5),
@@ -210,21 +298,51 @@ class UltimateHomeScreen extends StatelessWidget {
         physics: const BouncingScrollPhysics(),
         slivers: [
           SliverAppBar(
-            backgroundColor: Colors.transparent, expandedHeight: 140.0, floating: true, pinned: true, elevation: 0,
+            backgroundColor: Colors.transparent,
+            expandedHeight: 140.0,
+            floating: true,
+            pinned: true,
+            elevation: 0,
             flexibleSpace: ClipRRect(
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                 child: Container(
                   color: Colors.white.withOpacity(0.8),
                   child: FlexibleSpaceBar(
-                    titlePadding: EdgeInsets.zero, expandedTitleScale: 1.0,
+                    titlePadding: EdgeInsets.zero,
+                    expandedTitleScale: 1.0,
                     title: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 50, 16, 0),
                       child: Row(
                         children: [
-                          const CircleAvatar(radius: 18, backgroundImage: NetworkImage("https://i.pravatar.cc/150?img=12")),
+                          const CircleAvatar(
+                            radius: 18,
+                            backgroundImage: NetworkImage(
+                              "https://i.pravatar.cc/150?img=12",
+                            ),
+                          ),
                           const SizedBox(width: 10),
-                          Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: const [Text("Halo, Hunter!", style: TextStyle(color: Colors.black, fontSize: 14, fontWeight: FontWeight.bold)), Text("Siap berburu?", style: TextStyle(color: Colors.grey, fontSize: 10))]),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              Text(
+                                "Halo, Hunter!",
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                "Siap berburu?",
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
@@ -241,25 +359,72 @@ class UltimateHomeScreen extends StatelessWidget {
                 children: [
                   _buildBanner(),
                   const SizedBox(height: 30),
-                  const Text("Kategori", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+                  const Text(
+                    "Kategori",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                  ),
                   const SizedBox(height: 20),
-                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [_buildCategoryItem("Semua", Icons.grid_view_rounded, true), _buildCategoryItem("Roti", Icons.bakery_dining_rounded, false), _buildCategoryItem("Nasi", Icons.rice_bowl_rounded, false), _buildCategoryItem("Buah", Icons.eco_rounded, false), _buildCategoryItem("Minum", Icons.local_cafe_rounded, false)]),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildCategoryItem(
+                        "Semua",
+                        Icons.grid_view_rounded,
+                        true,
+                      ),
+                      _buildCategoryItem(
+                        "Roti",
+                        Icons.bakery_dining_rounded,
+                        false,
+                      ),
+                      _buildCategoryItem(
+                        "Nasi",
+                        Icons.rice_bowl_rounded,
+                        false,
+                      ),
+                      _buildCategoryItem("Buah", Icons.eco_rounded, false),
+                      _buildCategoryItem(
+                        "Minum",
+                        Icons.local_cafe_rounded,
+                        false,
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 30),
-                  const Text("Target Terdekat 🎯", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+                  const Text(
+                    "Target Terdekat 🎯",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                  ),
                   const SizedBox(height: 20),
-                  
+
                   // LIST MAKANAN
                   StreamBuilder<List<Map<String, dynamic>>>(
                     stream: db.getAllAvailableMenuStream(),
                     builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-                      if (!snapshot.hasData || snapshot.data!.isEmpty) return const Text("Belum ada menu.");
+                      if (snapshot.connectionState == ConnectionState.waiting)
+                        return const Center(child: CircularProgressIndicator());
+                      if (!snapshot.hasData || snapshot.data!.isEmpty)
+                        return const Text("Belum ada menu.");
                       return Column(
                         children: snapshot.data!.map((data) {
                           final product = ProductModel.fromMap(data);
                           return GestureDetector(
-                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProductDetailScreen(product: product))),
-                            child: _buildPremiumCard(title: product.name, price: currency.format(product.price), original: currency.format(product.originalPrice), imageUrl: product.imageUrl ?? "https://via.placeholder.com/150", stock: product.stock),
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    ProductDetailScreen(product: product),
+                              ),
+                            ),
+                            child: _buildPremiumCard(
+                              title: product.name,
+                              price: currency.format(product.price),
+                              original: currency.format(product.originalPrice),
+                              imageUrl:
+                                  product.imageUrl ??
+                                  "https://via.placeholder.com/150",
+                              stock: product.stock,
+                            ),
                           );
                         }).toList(),
                       );
@@ -275,11 +440,165 @@ class UltimateHomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBanner() => Container(width: double.infinity, height: 160, decoration: BoxDecoration(borderRadius: BorderRadius.circular(25), image: const DecorationImage(image: NetworkImage("https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=2070"), fit: BoxFit.cover)), child: Container(padding: const EdgeInsets.all(20), decoration: BoxDecoration(borderRadius: BorderRadius.circular(25), gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withOpacity(0.8)])), child: Column(mainAxisAlignment: MainAxisAlignment.end, crossAxisAlignment: CrossAxisAlignment.start, children: const [Text("Promo Hunter", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), Text("Diskon 80%!", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900))])));
-  
-  Widget _buildCategoryItem(String label, IconData icon, bool isActive) => Column(children: [Container(height: 60, width: 60, decoration: BoxDecoration(color: isActive ? const Color(0xFF2ECC71) : Colors.white, borderRadius: BorderRadius.circular(18), boxShadow: [if (!isActive) BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 5, offset: const Offset(0, 2))]), child: Icon(icon, color: isActive ? Colors.white : Colors.grey, size: 28)), const SizedBox(height: 8), Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isActive ? Colors.black : Colors.grey))]);
+  Widget _buildBanner() => Container(
+    width: double.infinity,
+    height: 160,
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(25),
+      image: const DecorationImage(
+        image: NetworkImage(
+          "https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=2070",
+        ),
+        fit: BoxFit.cover,
+      ),
+    ),
+    child: Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(25),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.transparent, Colors.black.withOpacity(0.8)],
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: const [
+          Text(
+            "Promo Hunter",
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          Text(
+            "Diskon 80%!",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 
-  Widget _buildPremiumCard({required String title, required String price, required String original, required String imageUrl, required int stock}) => Container(margin: const EdgeInsets.only(bottom: 20), height: 260, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(25), boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 15, offset: const Offset(0, 5))]), child: Column(children: [ClipRRect(borderRadius: const BorderRadius.vertical(top: Radius.circular(25)), child: Image.network(imageUrl, height: 160, width: double.infinity, fit: BoxFit.cover)), Padding(padding: const EdgeInsets.all(16), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)), Text("Sisa $stock", style: TextStyle(color: stock < 3 ? Colors.red : Colors.green))]), Column(crossAxisAlignment: CrossAxisAlignment.end, children: [Text(original, style: const TextStyle(decoration: TextDecoration.lineThrough, color: Colors.grey)), Text(price, style: const TextStyle(color: Color(0xFF2ECC71), fontSize: 18, fontWeight: FontWeight.bold))])]))]));
+  Widget _buildCategoryItem(String label, IconData icon, bool isActive) =>
+      Column(
+        children: [
+          Container(
+            height: 60,
+            width: 60,
+            decoration: BoxDecoration(
+              color: isActive ? const Color(0xFF2ECC71) : Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [
+                if (!isActive)
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    blurRadius: 5,
+                    offset: const Offset(0, 2),
+                  ),
+              ],
+            ),
+            child: Icon(
+              icon,
+              color: isActive ? Colors.white : Colors.grey,
+              size: 28,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: isActive ? Colors.black : Colors.grey,
+            ),
+          ),
+        ],
+      );
+
+  Widget _buildPremiumCard({
+    required String title,
+    required String price,
+    required String original,
+    required String imageUrl,
+    required int stock,
+  }) => Container(
+    margin: const EdgeInsets.only(bottom: 20),
+    height: 260,
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(25),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.grey.withOpacity(0.1),
+          blurRadius: 15,
+          offset: const Offset(0, 5),
+        ),
+      ],
+    ),
+    child: Column(
+      children: [
+        ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
+          child: Image.network(
+            imageUrl,
+            height: 160,
+            width: double.infinity,
+            fit: BoxFit.cover,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    "Sisa $stock",
+                    style: TextStyle(
+                      color: stock < 3 ? Colors.red : Colors.green,
+                    ),
+                  ),
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    original,
+                    style: const TextStyle(
+                      decoration: TextDecoration.lineThrough,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  Text(
+                    price,
+                    style: const TextStyle(
+                      color: Color(0xFF2ECC71),
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 // ==========================================
@@ -292,16 +611,27 @@ class UserOrdersTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final db = SupabaseDatabaseService();
-    final currency = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+    final currency = NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'Rp ',
+      decimalDigits: 0,
+    );
 
     return Scaffold(
       backgroundColor: const Color(0xFFF0F2F5),
-      appBar: AppBar(title: const Text("Pesanan Saya"), backgroundColor: Colors.white, elevation: 0, foregroundColor: Colors.black),
+      appBar: AppBar(
+        title: const Text("Pesanan Saya"),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        foregroundColor: Colors.black,
+      ),
       body: StreamBuilder<List<Map<String, dynamic>>>(
         stream: db.getUserOrdersStream(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-          if (!snapshot.hasData || snapshot.data!.isEmpty) return const Center(child: Text("Belum ada pesanan."));
+          if (snapshot.connectionState == ConnectionState.waiting)
+            return const Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData || snapshot.data!.isEmpty)
+            return const Center(child: Text("Belum ada pesanan."));
 
           return ListView.builder(
             padding: const EdgeInsets.all(15),
@@ -309,7 +639,7 @@ class UserOrdersTab extends StatelessWidget {
             itemBuilder: (context, index) {
               final order = snapshot.data![index];
               final status = order['status'] ?? 'pending';
-              
+
               // Warna Status
               Color statusColor = Colors.orange;
               if (status == 'process') statusColor = Colors.blue;
@@ -318,20 +648,56 @@ class UserOrdersTab extends StatelessWidget {
               return FutureBuilder<Map<String, dynamic>>(
                 future: db.getProductById(order['product_id'].toString()),
                 builder: (context, prodSnap) {
-                  final prodName = prodSnap.hasData ? prodSnap.data!['name'] : 'Loading...';
-                  final prodImage = prodSnap.hasData ? prodSnap.data!['image_url'] : null;
+                  final prodName = prodSnap.hasData
+                      ? prodSnap.data!['name']
+                      : 'Loading...';
+                  final prodImage = prodSnap.hasData
+                      ? prodSnap.data!['image_url']
+                      : null;
 
                   return Container(
                     margin: const EdgeInsets.only(bottom: 10),
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15), boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 5)]),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(15),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.1),
+                          blurRadius: 5,
+                        ),
+                      ],
+                    ),
                     child: ListTile(
                       leading: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: prodImage != null ? Image.network(prodImage, width: 50, height: 50, fit: BoxFit.cover) : const Icon(Icons.fastfood),
+                        child: prodImage != null
+                            ? Image.network(
+                                prodImage,
+                                width: 50,
+                                height: 50,
+                                fit: BoxFit.cover,
+                              )
+                            : const Icon(Icons.fastfood),
                       ),
-                      title: Text(prodName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text("Status: ${status.toUpperCase()}", style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 12)),
-                      trailing: Text(currency.format(order['total_price']), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                      title: Text(
+                        prodName,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        "Status: ${status.toUpperCase()}",
+                        style: TextStyle(
+                          color: statusColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                      trailing: Text(
+                        currency.format(order['total_price']),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                        ),
+                      ),
                     ),
                   );
                 },
@@ -358,13 +724,181 @@ class UserProfileTab extends StatelessWidget {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            Container(padding: const EdgeInsets.fromLTRB(20, 60, 20, 30), decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)), boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 5))]), child: Column(children: [Row(children: [Container(padding: const EdgeInsets.all(3), decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: const Color(0xFF2ECC71), width: 3)), child: const CircleAvatar(radius: 40, backgroundImage: NetworkImage("https://i.pravatar.cc/150?img=12"))), const SizedBox(width: 20), Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text("Hunter Sejati", style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)), const SizedBox(height: 5), Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: const Color(0xFF2ECC71).withOpacity(0.1), borderRadius: BorderRadius.circular(8)), child: const Text("PRO MEMBER", style: TextStyle(color: Color(0xFF2ECC71), fontWeight: FontWeight.bold, fontSize: 10)))])])])),
-            Padding(padding: const EdgeInsets.all(20), child: Column(children: [const Text("Pengaturan Akun", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey)), const SizedBox(height: 10), _buildMenuCard(Icons.person_outline, "Edit Profil"), _buildMenuCard(Icons.lock_outline, "Keamanan & Password"), _buildMenuCard(Icons.payment, "Metode Pembayaran"), const SizedBox(height: 20), const Text("Lainnya", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey)), const SizedBox(height: 10), _buildMenuCard(Icons.history, "Riwayat Pesanan"), _buildMenuCard(Icons.help_outline, "Pusat Bantuan"), const SizedBox(height: 30), SizedBox(width: double.infinity, height: 55, child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFFEBEE), foregroundColor: Colors.red, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))), onPressed: () async { await AuthService().signOut(); if (context.mounted) Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false); }, child: Row(mainAxisAlignment: MainAxisAlignment.center, children: const [Icon(Icons.logout_rounded, color: Colors.red), SizedBox(width: 10), Text("Keluar Aplikasi", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))]))), const SizedBox(height: 100)])),
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 60, 20, 30),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(
+                  bottom: Radius.circular(30),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 10,
+                    offset: Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: const Color(0xFF2ECC71),
+                            width: 3,
+                          ),
+                        ),
+                        child: const CircleAvatar(
+                          radius: 40,
+                          backgroundImage: NetworkImage(
+                            "https://i.pravatar.cc/150?img=12",
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 20),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Hunter Sejati",
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2ECC71).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text(
+                              "PRO MEMBER",
+                              style: TextStyle(
+                                color: Color(0xFF2ECC71),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  const Text(
+                    "Pengaturan Akun",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _buildMenuCard(Icons.person_outline, "Edit Profil"),
+                  _buildMenuCard(Icons.lock_outline, "Keamanan & Password"),
+                  _buildMenuCard(Icons.payment, "Metode Pembayaran"),
+                  const SizedBox(height: 20),
+                  const Text(
+                    "Lainnya",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _buildMenuCard(Icons.history, "Riwayat Pesanan"),
+                  _buildMenuCard(Icons.help_outline, "Pusat Bantuan"),
+                  const SizedBox(height: 30),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 55,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFFEBEE),
+                        foregroundColor: Colors.red,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                      ),
+                      onPressed: () async {
+                        await AuthService().signOut();
+                        if (context.mounted)
+                          Navigator.of(
+                            context,
+                          ).pushNamedAndRemoveUntil('/login', (route) => false);
+                      },
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.logout_rounded, color: Colors.red),
+                          const SizedBox(width: 10),
+                          Text(
+                            "Keluar Aplikasi",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 100),
+                ],
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildMenuCard(IconData icon, String title) => Container(margin: const EdgeInsets.only(bottom: 10), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15), boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))]), child: ListTile(leading: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: Colors.black87)), title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)), trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey), onTap: () {}));
+  Widget _buildMenuCard(IconData icon, String title) => Container(
+    margin: const EdgeInsets.only(bottom: 10),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(15),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.grey.withOpacity(0.05),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    ),
+    child: ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: Colors.black87),
+      ),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+      trailing: const Icon(
+        Icons.arrow_forward_ios_rounded,
+        size: 16,
+        color: Colors.grey,
+      ),
+      onTap: () {},
+    ),
+  );
 }

@@ -4,6 +4,9 @@ publish_to: 'none'
 
 version: 1.0.0+1
 
+assets:
+    - assets/
+
 environment:
   sdk: '>=3.10.0 <4.0.0'
 
@@ -11,6 +14,8 @@ dependencies:
   flutter:
     sdk: flutter
 
+
+  
   # --- MAPS & LOKASI ---
   # 👇 INI KUNCINYA: Kita pake versi 7.0.0 biar gak bentrok sama Firebase
   location: ^8.0.1
@@ -22,6 +27,8 @@ dependencies:
   firebase_auth: ^6.1.3
   cloud_firestore: ^6.1.1
 
+  fl_chart: ^1.1.1  # TAMBAHKAN INI
+
   # --- PENGATUR DATA ---
   provider: ^6.0.0
 
@@ -32,11 +39,15 @@ dependencies:
   cached_network_image: ^3.3.0
   firebase_storage: ^13.0.5
   image_picker: ^1.2.1
+  flutter_local_notifications: ^19.5.0
+  permission_handler: ^12.0.1
+  timezone: 0.10.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+
   # Kalau lu pake ini buat fitur utama, pindahin ke 'dependencies' di atas ya.
   # Tapi kalau cuma buat test, biarin disini.
   flutter_map: ^8.2.2 

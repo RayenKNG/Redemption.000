@@ -1,11 +1,26 @@
-import 'dart:async'; // Tambah ini buat StreamSubscription
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:saveplate/screens/add_product_screen.dart';
 import 'package:saveplate/screens/edit_product_screen.dart';
 import 'package:saveplate/services/supabase_database_service.dart';
 import 'package:saveplate/models/product_model.dart';
 import 'package:intl/intl.dart';
 import 'package:saveplate/services/auth_service.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
+// --- WARNA TEMA (ELEGANT PALETTE) ---
+class AppColors {
+  static const Color primary = Color(0xFF2D3436); // Hitam Elegan (Text/Icons)
+  static const Color accent = Color(
+    0xFFFF7675,
+  ); // Merah Muda Salmon (Highlight)
+  static const Color secondary = Color(0xFF0984E3); // Biru Kalem
+  static const Color background = Color(0xFFF7F9FC); // Putih Abu (Modern BG)
+  static const Color surface = Colors.white;
+  static const Color success = Color(0xFF00B894); // Hijau Mint
+  static const Color warning = Color(0xFFFDCB6E); // Kuning Mustard
+}
 
 class MerchantMainScreen extends StatefulWidget {
   const MerchantMainScreen({super.key});
@@ -15,116 +30,127 @@ class MerchantMainScreen extends StatefulWidget {
 
 class _MerchantMainScreenState extends State<MerchantMainScreen> {
   int _currentIndex = 0;
-  
-  // Variabel buat Notifikasi
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
   StreamSubscription? _orderSubscription;
+  bool _isFirstLoad = true;
   int? _previousOrderCount;
-  int? _previousWalletAmount;
-  bool _isFirstLoad = true; // Biar pas baru buka gak langsung bunyi
 
   final List<Widget> _pages = [
     const DashboardTab(),
     const OrdersTab(),
     const MenuTab(),
     const WalletTab(),
-    const ProfileTab(),
+    const ProfileTab(), // Profil yang sudah di-upgrade
   ];
 
   @override
   void initState() {
     super.initState();
-    _setupNotifications();
+    _initNotif();
+    _setupListener();
   }
 
   @override
   void dispose() {
-    _orderSubscription?.cancel(); // Matikan listener pas keluar biar hemat memori
+    _orderSubscription?.cancel();
     super.dispose();
   }
 
-  // 🔥 LOGIC NOTIFIKASI MERCHANT
-  void _setupNotifications() {
+  Future<void> _initNotif() async {
+    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const iosInit = DarwinInitializationSettings();
+    const initSettings = InitializationSettings(
+      android: androidInit,
+      iOS: iosInit,
+    );
+    await flutterLocalNotificationsPlugin.initialize(initSettings);
+
+    final androidImpl = flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    await androidImpl?.requestNotificationsPermission();
+  }
+
+  void _setupListener() {
     final db = SupabaseDatabaseService();
-    
-    // Kita dengerin stream orderan
     _orderSubscription = db.getMerchantOrdersStream().listen((orders) {
-      // 1. Hitung Saldo Saat Ini (Cuma yang status 'done')
-      int currentWallet = 0;
-      for (var o in orders) {
-        if (o['status'] == 'done') currentWallet += (o['total_price'] as int);
+      if (!_isFirstLoad &&
+          _previousOrderCount != null &&
+          orders.length > _previousOrderCount!) {
+        _showNotif("Pesanan Baru", "Ada pelanggan yang menunggu konfirmasi!");
       }
-
-      // 2. Hitung Jumlah Pesanan Saat Ini
-      int currentOrderCount = orders.length;
-
-      // 3. Logic Notifikasi (Skip pas loading pertama)
-      if (!_isFirstLoad) {
-        
-        // Cek Pesanan Baru (Jumlah nambah)
-        if (_previousOrderCount != null && currentOrderCount > _previousOrderCount!) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Row(children: [Icon(Icons.notifications_active, color: Colors.white), SizedBox(width: 10), Text("TING! Ada Pesanan Baru Masuk! 📦")]),
-              backgroundColor: Colors.blue,
-              behavior: SnackBarBehavior.floating,
-              duration: Duration(seconds: 3),
-            ),
-          );
-        }
-
-        // Cek Uang Masuk (Saldo nambah)
-        if (_previousWalletAmount != null && currentWallet > _previousWalletAmount!) {
-          final diff = currentWallet - _previousWalletAmount!;
-          final f = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(children: [const Icon(Icons.monetization_on, color: Colors.white), const SizedBox(width: 10), Text("CHING! Uang Masuk ${f.format(diff)} 💰")]),
-              backgroundColor: Colors.green,
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
+      if (mounted) {
+        setState(() {
+          _previousOrderCount = orders.length;
+          _isFirstLoad = false;
+        });
       }
-
-      // Update data terakhir
-      setState(() {
-        _previousOrderCount = currentOrderCount;
-        _previousWalletAmount = currentWallet;
-        _isFirstLoad = false; // Loading pertama selesai
-      });
     });
+  }
+
+  Future<void> _showNotif(String title, String body) async {
+    const androidDetails = AndroidNotificationDetails(
+      'merchant_channel',
+      'Merchant Notif',
+      importance: Importance.max,
+      priority: Priority.high,
+    );
+    await flutterLocalNotificationsPlugin.show(
+      DateTime.now().millisecond,
+      title,
+      body,
+      const NotificationDetails(android: androidDetails),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F2F5),
+      backgroundColor: AppColors.background,
       body: _pages[_currentIndex],
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          color: AppColors.surface,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 20,
+              offset: const Offset(0, -5),
+            ),
+          ],
         ),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          child: BottomNavigationBar(
-            currentIndex: _currentIndex,
-            onTap: (index) => setState(() => _currentIndex = index),
-            selectedItemColor: const Color(0xFFFF6D00),
-            unselectedItemColor: Colors.grey,
-            backgroundColor: Colors.white,
-            type: BottomNavigationBarType.fixed,
-            elevation: 0,
-            items: const [
-              BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), label: "Dash"),
-              BottomNavigationBarItem(icon: Icon(Icons.receipt_long_rounded), label: "Pesanan"),
-              BottomNavigationBarItem(icon: Icon(Icons.restaurant_menu_rounded), label: "Menu"),
-              BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet_rounded), label: "Wallet"),
-              BottomNavigationBarItem(icon: Icon(Icons.person_rounded), label: "Profil"),
-            ],
-          ),
+        child: NavigationBar(
+          height: 70,
+          backgroundColor: AppColors.surface,
+          elevation: 0,
+          selectedIndex: _currentIndex,
+          onDestinationSelected: (index) =>
+              setState(() => _currentIndex = index),
+          indicatorColor: AppColors.accent.withOpacity(0.15),
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.grid_view_rounded),
+              label: 'Home',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.receipt_long_rounded),
+              label: 'Order',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.fastfood_rounded),
+              label: 'Menu',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.account_balance_wallet_rounded),
+              label: 'Wallet',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.person_rounded),
+              label: 'Profil',
+            ),
+          ],
         ),
       ),
     );
@@ -132,7 +158,7 @@ class _MerchantMainScreenState extends State<MerchantMainScreen> {
 }
 
 // ==========================================
-// 1. DASHBOARD TAB
+// 📊 1. DASHBOARD TAB (Minimalist Style)
 // ==========================================
 class DashboardTab extends StatelessWidget {
   const DashboardTab({super.key});
@@ -141,43 +167,323 @@ class DashboardTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final db = SupabaseDatabaseService();
     return Scaffold(
-      appBar: AppBar(title: const Text("Dashboard"), elevation: 0),
-      body: FutureBuilder<Map<String, dynamic>>(
-        future: db.getDashboardStats(),
-        builder: (context, snap) {
-          final data = snap.data ?? {'total_orders': 0, 'total_wallet': 0};
-          return Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                _buildStatCard("Total Pesanan", "${data['total_orders']}", Icons.shopping_bag, Colors.blue),
-                const SizedBox(height: 15),
-                _buildStatCard("Pendapatan", "Rp ${NumberFormat('#,###', 'id_ID').format(data['total_wallet'])}", Icons.account_balance_wallet, Colors.green),
-              ],
-            ),
-          );
-        },
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header Greeting
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Halo, Partner 👋",
+                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        "Overview Bisnis",
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.notifications_none_rounded,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 30),
+
+              // Stream Data
+              StreamBuilder<List<Map<String, dynamic>>>(
+                stream: db.getMerchantOrdersStream(),
+                builder: (context, snap) {
+                  if (!snap.hasData)
+                    return const Center(child: CircularProgressIndicator());
+                  final orders = snap.data!;
+
+                  int income = 0;
+                  int pending = 0, process = 0, done = 0;
+
+                  for (var o in orders) {
+                    if (o['status'] == 'done') {
+                      income += (o['total_price'] as int);
+                      done++;
+                    } else if (o['status'] == 'process')
+                      process++;
+                    else if (o['status'] == 'pending')
+                      pending++;
+                  }
+
+                  return Column(
+                    children: [
+                      // Total Income Card
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(25),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primary.withOpacity(0.3),
+                              blurRadius: 15,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(
+                                    Icons.wallet,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                const Text(
+                                  "Total Pendapatan",
+                                  style: TextStyle(color: Colors.white70),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 15),
+                            Text(
+                              NumberFormat.currency(
+                                locale: 'id_ID',
+                                symbol: 'Rp ',
+                                decimalDigits: 0,
+                              ).format(income),
+                              style: const TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 25),
+
+                      // Stats Row
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _StatCard(
+                              title: "Pesanan",
+                              value: "${orders.length}",
+                              icon: Icons.shopping_bag_outlined,
+                              color: AppColors.secondary,
+                            ),
+                          ),
+                          const SizedBox(width: 15),
+                          Expanded(
+                            child: _StatCard(
+                              title: "Selesai",
+                              value: "$done",
+                              icon: Icons.check_circle_outline,
+                              color: AppColors.success,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 30),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          "Analitik",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Chart Minimalis
+                      if (orders.isNotEmpty)
+                        SizedBox(
+                          height: 200,
+                          child: PieChart(
+                            PieChartData(
+                              sectionsSpace: 0,
+                              centerSpaceRadius: 40,
+                              sections: [
+                                PieChartSectionData(
+                                  value: pending.toDouble(),
+                                  color: AppColors.warning,
+                                  radius: 25,
+                                  showTitle: false,
+                                ),
+                                PieChartSectionData(
+                                  value: process.toDouble(),
+                                  color: AppColors.secondary,
+                                  radius: 30,
+                                  showTitle: false,
+                                ),
+                                PieChartSectionData(
+                                  value: done.toDouble(),
+                                  color: AppColors.success,
+                                  radius: 35,
+                                  showTitle: false,
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Text(
+                            "Belum ada data pesanan untuk dianalisis.",
+                          ),
+                        ),
+
+                      if (orders.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 20),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              _LegendItem(
+                                color: AppColors.warning,
+                                label: "Baru ($pending)",
+                              ),
+                              const SizedBox(width: 15),
+                              _LegendItem(
+                                color: AppColors.secondary,
+                                label: "Proses ($process)",
+                              ),
+                              const SizedBox(width: 15),
+                              _LegendItem(
+                                color: AppColors.success,
+                                label: "Selesai ($done)",
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
+}
 
-  Widget _buildStatCard(String title, String val, IconData icon, Color color) {
+class _StatCard extends StatelessWidget {
+  final String title, value;
+  final IconData icon;
+  final Color color;
+  const _StatCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15)),
-      child: Row(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: color)),
-          const SizedBox(width: 15),
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(val, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)), Text(title, style: const TextStyle(color: Colors.grey))]),
+          Icon(icon, color: color, size: 28),
+          const SizedBox(height: 15),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+            ),
+          ),
+          Text(title, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
         ],
       ),
     );
   }
 }
 
+class _LegendItem extends StatelessWidget {
+  final Color color;
+  final String label;
+  const _LegendItem({required this.color, required this.label});
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        ),
+      ],
+    );
+  }
+}
+
 // ==========================================
-// 2. ORDERS TAB (TAB UTAMA TRANSAKSI)
+// 📦 2. ORDERS TAB (Clean List)
 // ==========================================
 class OrdersTab extends StatelessWidget {
   const OrdersTab({super.key});
@@ -187,26 +493,34 @@ class OrdersTab extends StatelessWidget {
     return DefaultTabController(
       length: 3,
       child: Scaffold(
+        backgroundColor: AppColors.background,
         appBar: AppBar(
-          title: const Text("Kelola Pesanan", style: TextStyle(color: Colors.black)),
           backgroundColor: Colors.white,
           elevation: 0,
+          title: const Text(
+            "Daftar Pesanan",
+            style: TextStyle(
+              color: AppColors.primary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          centerTitle: true,
           bottom: const TabBar(
-            labelColor: Color(0xFFFF6D00),
+            labelColor: AppColors.accent,
             unselectedLabelColor: Colors.grey,
-            indicatorColor: Color(0xFFFF6D00),
+            indicatorColor: AppColors.accent,
             tabs: [
-              Tab(text: "Masuk"),   
-              Tab(text: "Proses"),  
-              Tab(text: "Selesai"), 
+              Tab(text: "Masuk"),
+              Tab(text: "Proses"),
+              Tab(text: "Riwayat"),
             ],
           ),
         ),
         body: const TabBarView(
           children: [
-            OrderListByStatus(statusFilter: 'pending'), 
-            OrderListByStatus(statusFilter: 'process'), 
-            OrderListByStatus(statusFilter: 'done'),    
+            OrderList(status: 'pending'),
+            OrderList(status: 'process'),
+            OrderList(status: 'done'),
           ],
         ),
       ),
@@ -214,144 +528,206 @@ class OrdersTab extends StatelessWidget {
   }
 }
 
-// ==========================================
-// WIDGET LIST PESANAN (LOGIC PINDAH TAB)
-// ==========================================
-class OrderListByStatus extends StatefulWidget {
-  final String statusFilter;
-  const OrderListByStatus({super.key, required this.statusFilter});
-
-  @override
-  State<OrderListByStatus> createState() => _OrderListByStatusState();
-}
-
-class _OrderListByStatusState extends State<OrderListByStatus> {
-  final db = SupabaseDatabaseService();
-  String? _loadingId;
-
-  // Fungsi saat tombol ditekan
-  Future<void> _processOrder(String id, String nextStatus) async {
-    setState(() => _loadingId = id); 
-    
-    try {
-      await db.updateOrderStatus(id, nextStatus);
-      if (mounted) {
-        // Notif manual pas tombol ditekan
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(nextStatus == 'process' ? "Pesanan Diproses! Pindah ke tab Proses." : "Pesanan Selesai! Saldo Bertambah."),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 1),
-        ));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Gagal: $e"), backgroundColor: Colors.red));
-      }
-    } finally {
-      if (mounted) setState(() => _loadingId = null); 
-    }
-  }
+class OrderList extends StatelessWidget {
+  final String status;
+  const OrderList({super.key, required this.status});
 
   @override
   Widget build(BuildContext context) {
-    final f = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+    final db = SupabaseDatabaseService();
+    final f = NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'Rp ',
+      decimalDigits: 0,
+    );
 
-    return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: db.getMerchantOrdersStream(), 
+    return StreamBuilder(
+      stream: db.getMerchantOrdersStream(),
       builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting) {
+        if (!snap.hasData)
           return const Center(child: CircularProgressIndicator());
-        }
-
-        final allOrders = snap.data ?? [];
-        final orders = allOrders.where((o) {
-          final status = o['status'] ?? 'pending';
-          return status == widget.statusFilter;
-        }).toList();
+        final orders = (snap.data as List)
+            .where((o) => o['status'] == status)
+            .toList();
 
         if (orders.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.inbox_outlined, size: 60, color: Colors.grey[300]),
+                Icon(Icons.inbox_rounded, size: 60, color: Colors.grey[300]),
                 const SizedBox(height: 10),
-                Text("Tidak ada pesanan di sini", style: TextStyle(color: Colors.grey[400])),
+                Text(
+                  "Tidak ada pesanan $status",
+                  style: TextStyle(color: Colors.grey[400]),
+                ),
               ],
             ),
           );
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(15),
+        return ListView.separated(
+          padding: const EdgeInsets.all(20),
           itemCount: orders.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 15),
           itemBuilder: (context, i) {
             final order = orders[i];
-            final orderId = order['id'].toString();
-
-            return FutureBuilder<Map<String, dynamic>>(
-              future: db.getProductById(order['product_id'].toString()),
-              builder: (context, pSnap) {
-                final pName = pSnap.data?['name'] ?? "Loading...";
-                final pImg = pSnap.data?['image_url'];
-
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 15),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                  elevation: 2,
-                  child: Padding(
-                    padding: const EdgeInsets.all(15),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: pImg != null 
-                                ? Image.network(pImg, width: 60, height: 60, fit: BoxFit.cover) 
-                                : const Icon(Icons.fastfood, size: 40, color: Colors.grey),
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "#${order['id'].toString().padLeft(4, '0')}",
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: status == 'pending'
+                              ? AppColors.warning.withOpacity(0.2)
+                              : AppColors.success.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          status.toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: status == 'pending'
+                                ? Colors.orange[800]
+                                : Colors.green[800],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 25),
+                  Row(
+                    children: [
+                      FutureBuilder(
+                        future: db.getProductById(
+                          order['product_id'].toString(),
+                        ),
+                        builder: (context, p) {
+                          final img = p.data?['image_url'];
+                          return Container(
+                            width: 60,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(12),
+                              image: img != null
+                                  ? DecorationImage(
+                                      image: NetworkImage(img),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : null,
                             ),
-                            const SizedBox(width: 15),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(pName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                  Text("${order['quantity']} Porsi • ${f.format(order['total_price'])}", style: const TextStyle(color: Colors.grey)),
-                                ],
+                            child: img == null
+                                ? const Icon(Icons.fastfood, color: Colors.grey)
+                                : null,
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 15),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            FutureBuilder(
+                              future: db.getProductById(
+                                order['product_id'].toString(),
+                              ),
+                              builder: (c, s) => Text(
+                                s.data?['name'] ?? '...',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              "${order['quantity']}x  •  ${f.format(order['total_price'])}",
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 13,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 15),
-                        
-                        // TOMBOL LOGIC (BERUBAH SESUAI TAB)
-                        SizedBox(
-                          width: double.infinity,
-                          child: _loadingId == orderId
-                              ? const Center(child: SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)))
-                              : widget.statusFilter == 'pending'
-                                  ? ElevatedButton(
-                                      onPressed: () => _processOrder(orderId, 'process'),
-                                      style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-                                      child: const Text("TERIMA ORDER", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                                    )
-                                  : widget.statusFilter == 'process'
-                                      ? ElevatedButton(
-                                          onPressed: () => _processOrder(orderId, 'done'),
-                                          style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                                          child: const Text("SELESAIKAN ORDER", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                                        )
-                                      : const OutlinedButton(
-                                          onPressed: null,
-                                          child: Text("Transaksi Berhasil ✅", style: TextStyle(color: Colors.green)),
-                                        ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                );
-              },
+                  const SizedBox(height: 15),
+                  if (status == 'pending')
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => db.updateOrderStatus(
+                          order['id'].toString(),
+                          'process',
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.accent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          "Terima Pesanan",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    )
+                  else if (status == 'process')
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => db.updateOrderStatus(
+                          order['id'].toString(),
+                          'done',
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.success,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          "Selesai & Antar",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             );
           },
         );
@@ -361,51 +737,144 @@ class _OrderListByStatusState extends State<OrderListByStatus> {
 }
 
 // ==========================================
-// 3. MENU TAB
+// 🍔 3. MENU TAB (Grid Modern)
 // ==========================================
 class MenuTab extends StatelessWidget {
   const MenuTab({super.key});
   @override
   Widget build(BuildContext context) {
     final db = SupabaseDatabaseService();
-    final f = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+    final f = NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'Rp ',
+      decimalDigits: 0,
+    );
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Menu Saya"), elevation: 0),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: const Color(0xFFFF6D00),
-        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AddProductScreen())),
-        label: const Text("Tambah", style: TextStyle(color: Colors.white)),
-        icon: const Icon(Icons.add, color: Colors.white),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text(
+          "Katalog Menu",
+          style: TextStyle(
+            color: AppColors.primary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
       ),
-      body: StreamBuilder<List<Map<String, dynamic>>>(
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: AppColors.primary,
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AddProductScreen()),
+        ),
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+      body: StreamBuilder(
         stream: db.getMerchantMenuStream(),
         builder: (context, snap) {
-          if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-          return ListView.builder(
-            padding: const EdgeInsets.all(15),
-            itemCount: snap.data!.length,
+          if (!snap.hasData)
+            return const Center(child: CircularProgressIndicator());
+          final products = snap.data as List;
+          return GridView.builder(
+            padding: const EdgeInsets.all(20),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 15,
+              mainAxisSpacing: 15,
+              childAspectRatio: 0.75,
+            ),
+            itemCount: products.length,
             itemBuilder: (context, i) {
-              final p = ProductModel.fromMap(snap.data![i]);
-              return Card(
-                elevation: 2,
-                child: ListTile(
-                  contentPadding: const EdgeInsets.all(10),
-                  leading: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: p.imageUrl != null 
-                      ? Image.network(p.imageUrl!, width: 60, height: 60, fit: BoxFit.cover) 
-                      : const Icon(Icons.fastfood, size: 40),
-                  ),
-                  title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text("Stok: ${p.stock} | ${f.format(p.price)}"),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(icon: const Icon(Icons.edit, color: Colors.blue), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EditProductScreen(product: p)))),
-                      IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => db.deleteProduct(p.id!)),
-                    ],
-                  ),
+              final p = ProductModel.fromMap(products[i]);
+              return Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 10,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(16),
+                          ),
+                          color: Colors.grey[100],
+                          image: p.imageUrl != null
+                              ? DecorationImage(
+                                  image: NetworkImage(p.imageUrl!),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
+                        ),
+                        child: Align(
+                          alignment: Alignment.topRight,
+                          child: IconButton(
+                            icon: const CircleAvatar(
+                              backgroundColor: Colors.white,
+                              radius: 14,
+                              child: Icon(
+                                Icons.edit,
+                                size: 14,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => EditProductScreen(product: p),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            p.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "Stok: ${p.stock}",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: p.stock < 5
+                                  ? AppColors.accent
+                                  : Colors.grey,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            f.format(p.price),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               );
             },
@@ -417,65 +886,421 @@ class MenuTab extends StatelessWidget {
 }
 
 // ==========================================
-// 4. WALLET & PROFILE (SISA TAB)
+// 💰 4. WALLET TAB (Elegant Card)
 // ==========================================
 class WalletTab extends StatelessWidget {
   const WalletTab({super.key});
   @override
   Widget build(BuildContext context) {
     final db = SupabaseDatabaseService();
-    final f = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+    final f = NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'Rp ',
+      decimalDigits: 0,
+    );
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Dompet"), backgroundColor: Colors.white, elevation: 0, foregroundColor: Colors.black),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: FutureBuilder<Map<String, dynamic>>(
-          future: db.getDashboardStats(),
-          builder: (context, snap) {
-            final totalWallet = snap.data?['total_wallet'] ?? 0;
-            return Container(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text(
+          "Dompet Saya",
+          style: TextStyle(
+            color: AppColors.primary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            FutureBuilder(
+              future: db.getDashboardStats(),
+              builder: (context, snap) {
+                final total = snap.data?['total_wallet'] ?? 0;
+                return Container(
+                  width: double.infinity,
+                  height: 200,
+                  padding: const EdgeInsets.all(25),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF2D3436), Color(0xFF636E72)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Icon(Icons.nfc, color: Colors.white54),
+                          Text(
+                            "Merchant Pay",
+                            style: TextStyle(
+                              color: Colors.white54,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Saldo Aktif",
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            f.format(total),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 30),
+
+            // Action Button
+            SizedBox(
               width: double.infinity,
-              padding: const EdgeInsets.all(30),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: [Color(0xFFFF6D00), Color(0xFFFFAB40)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [BoxShadow(color: const Color(0xFFFF6D00).withOpacity(0.4), blurRadius: 20, offset: const Offset(0, 10))],
+              height: 55,
+              child: ElevatedButton(
+                onPressed: () {},
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: const Text(
+                  "Tarik Dana",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
               ),
-              child: Column(
-                children: [
-                  const Text("Saldo Dapat Ditarik", style: TextStyle(color: Colors.white, fontSize: 16)),
-                  const SizedBox(height: 10),
-                  Text(f.format(totalWallet), style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Request Penarikan Dikirim!"), backgroundColor: Colors.green)),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.orange, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                    child: const Text("TARIK DANA", style: TextStyle(fontWeight: FontWeight.bold)),
-                  )
-                ],
+            ),
+
+            const SizedBox(height: 30),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                "Riwayat Transaksi",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-            );
-          },
+            ),
+            const SizedBox(height: 15),
+
+            _HistoryTile(
+              title: "Penarikan Dana",
+              date: "Hari ini, 10:00",
+              amount: "- Rp 150.000",
+              isIncome: false,
+            ),
+            _HistoryTile(
+              title: "Order #8821",
+              date: "Kemarin, 14:30",
+              amount: "+ Rp 45.000",
+              isIncome: true,
+            ),
+            _HistoryTile(
+              title: "Order #8820",
+              date: "Kemarin, 12:15",
+              amount: "+ Rp 32.000",
+              isIncome: true,
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class ProfileTab extends StatelessWidget {
-  const ProfileTab({super.key});
+class _HistoryTile extends StatelessWidget {
+  final String title, date, amount;
+  final bool isIncome;
+  const _HistoryTile({
+    required this.title,
+    required this.date,
+    required this.amount,
+    required this.isIncome,
+  });
+
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-        onPressed: () async {
-          await AuthService().signOut();
-          Navigator.pushReplacementNamed(context, '/login');
-        },
-        child: const Text("Logout", style: TextStyle(color: Colors.white)),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
       ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: isIncome
+                  ? AppColors.success.withOpacity(0.1)
+                  : AppColors.accent.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isIncome ? Icons.arrow_downward : Icons.arrow_upward,
+              color: isIncome ? AppColors.success : AppColors.accent,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  date,
+                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            amount,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: isIncome ? AppColors.success : AppColors.accent,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ==========================================
+// 👤 5. PROFILE TAB (YANG BAGUS & LENGKAP)
+// ==========================================
+class ProfileTab extends StatelessWidget {
+  const ProfileTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 50),
+        child: Column(
+          children: [
+            // Avatar & Name
+            const CircleAvatar(
+              radius: 50,
+              backgroundColor: AppColors.primary,
+              child: Icon(
+                Icons.store_mall_directory_rounded,
+                size: 50,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 15),
+            const Text(
+              "Toko SavePlate Utama",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+              ),
+            ),
+            Text(
+              "merchant@saveplate.com",
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+
+            const SizedBox(height: 30),
+
+            // Stats Row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _ProfileStat(
+                  value: "4.8",
+                  label: "Rating",
+                  icon: Icons.star,
+                  color: Colors.amber,
+                ),
+                Container(width: 1, height: 40, color: Colors.grey[300]),
+                const _ProfileStat(
+                  value: "2th",
+                  label: "Bergabung",
+                  icon: Icons.calendar_today,
+                  color: Colors.blue,
+                ),
+                Container(width: 1, height: 40, color: Colors.grey[300]),
+                const _ProfileStat(
+                  value: "Verified",
+                  label: "Status",
+                  icon: Icons.verified,
+                  color: Colors.green,
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 30),
+
+            // Menu Options
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Column(
+                children: [
+                  _ProfileMenuItem(
+                    icon: Icons.person_outline,
+                    text: "Edit Profil",
+                    onTap: () {},
+                  ),
+                  const Divider(height: 1, indent: 20, endIndent: 20),
+                  _ProfileMenuItem(
+                    icon: Icons.notifications_none,
+                    text: "Notifikasi",
+                    onTap: () {},
+                  ),
+                  const Divider(height: 1, indent: 20, endIndent: 20),
+                  _ProfileMenuItem(
+                    icon: Icons.security,
+                    text: "Keamanan Akun",
+                    onTap: () {},
+                  ),
+                  const Divider(height: 1, indent: 20, endIndent: 20),
+                  _ProfileMenuItem(
+                    icon: Icons.help_outline,
+                    text: "Bantuan & Support",
+                    onTap: () {},
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 25),
+
+            // Logout Button
+            SizedBox(
+              width: double.infinity,
+              height: 55,
+              child: ElevatedButton(
+                onPressed: () async {
+                  await AuthService().signOut();
+                  if (context.mounted)
+                    Navigator.pushReplacementNamed(context, '/login');
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accent.withOpacity(0.1),
+                  foregroundColor: AppColors.accent,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: const Text(
+                  "Keluar Aplikasi",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+            Text(
+              "Versi Aplikasi 1.0.0",
+              style: TextStyle(color: Colors.grey[400], fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileStat extends StatelessWidget {
+  final String value, label;
+  final IconData icon;
+  final Color color;
+  const _ProfileStat({
+    required this.value,
+    required this.label,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Icon(icon, color: color, size: 24),
+        const SizedBox(height: 5),
+        Text(
+          value,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+      ],
+    );
+  }
+}
+
+class _ProfileMenuItem extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final VoidCallback onTap;
+  const _ProfileMenuItem({
+    required this.icon,
+    required this.text,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      onTap: onTap,
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, color: AppColors.primary, size: 20),
+      ),
+      title: Text(text, style: const TextStyle(fontWeight: FontWeight.w600)),
+      trailing: const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
     );
   }
 }

@@ -1,8 +1,9 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:permission_handler/permission_handler.dart'; // Pastikan install package ini
+import 'package:permission_handler/permission_handler.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class NotificationService {
-  // Singleton pattern supaya hanya ada satu instance servis notifikasi
+  // Singleton pattern
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
@@ -10,38 +11,40 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
+  // Shortcut ke client Supabase
+  final supabase = Supabase.instance.client;
+
   // 1. Inisialisasi Service
   Future<void> init() async {
-    // Setup untuk Android (Gunakan icon default aplikasi @mipmap/ic_launcher)
+    // Setup Android
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    // Setup untuk iOS (Standar)
+    // Setup iOS
     final DarwinInitializationSettings initializationSettingsDarwin =
         DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
+          requestAlertPermission: true,
+          requestBadgePermission: true,
+          requestSoundPermission: true,
+        );
 
-    final InitializationSettings initializationSettings = InitializationSettings(
-      android: initializationSettingsAndroid,
-      iOS: initializationSettingsDarwin,
-    );
+    final InitializationSettings initializationSettings =
+        InitializationSettings(
+          android: initializationSettingsAndroid,
+          iOS: initializationSettingsDarwin,
+        );
 
     await flutterLocalNotificationsPlugin.initialize(
       initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
-        // Handle jika notifikasi diklik (misal navigasi ke halaman chat)
-        print("Notifikasi diklik dengan payload: ${response.payload}");
+        print("Notifikasi diklik: ${response.payload}");
       },
     );
-    
-    // Minta izin notifikasi (Wajib buat Android 13+)
+
     await requestNotificationPermissions();
   }
 
-  // 2. Minta Izin (PENTING untuk Android 13+)
+  // 2. Minta Izin Notifikasi
   Future<void> requestNotificationPermissions() async {
     var status = await Permission.notification.status;
     if (status.isDenied) {
@@ -58,17 +61,18 @@ class NotificationService {
   }) async {
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails(
-      'saveplate_channel_id', // ID Channel (harus unik)
-      'SavePlate Notifications', // Nama Channel
-      channelDescription: 'Notifikasi untuk pesanan dan pesan',
-      importance: Importance.max,
-      priority: Priority.high,
-      showWhen: true,
-      icon: '@mipmap/ic_launcher', // Pastikan icon ada
-    );
+          'saveplate_channel_id',
+          'SavePlate Notifications',
+          channelDescription: 'Notifikasi untuk pesanan dan pesan',
+          importance: Importance.max,
+          priority: Priority.high,
+          showWhen: true,
+          icon: '@mipmap/ic_launcher',
+        );
 
-    const NotificationDetails platformChannelSpecifics =
-        NotificationDetails(android: androidPlatformChannelSpecifics);
+    const NotificationDetails platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics,
+    );
 
     await flutterLocalNotificationsPlugin.show(
       id,
@@ -77,5 +81,55 @@ class NotificationService {
       platformChannelSpecifics,
       payload: payload,
     );
+  }
+
+  // 4. Listener Database (Logic Otomatis)
+  void startListening(String myUserId, bool isMerchant) {
+    print(
+      "Mulai memantau notifikasi untuk user: $myUserId (Merchant: $isMerchant)",
+    );
+
+    if (isMerchant) {
+      // === LOGIKA MERCHANT ===
+      supabase
+          .from('orders')
+          .stream(primaryKey: ['id'])
+          .eq('merchant_id', myUserId)
+          .listen((List<Map<String, dynamic>> data) {
+            for (var order in data) {
+              // Notif kalau ada order baru (status pending)
+              if (order['status'] == 'pending') {
+                showNotification(
+                  id: order['id'], // Pastikan ID ini integer
+                  title: 'Order Baru Masuk! 💰',
+                  body: 'Cek pesanan sekarang.',
+                );
+              }
+            }
+          });
+    } else {
+      // === LOGIKA USER BIASA ===
+      supabase
+          .from('orders')
+          .stream(primaryKey: ['id'])
+          .eq('user_id', myUserId)
+          .listen((List<Map<String, dynamic>> data) {
+            for (var order in data) {
+              if (order['status'] == 'accepted') {
+                showNotification(
+                  id: order['id'],
+                  title: 'Pesanan Diterima 🍳',
+                  body: 'Merchant sedang menyiapkan makananmu.',
+                );
+              } else if (order['status'] == 'ready') {
+                showNotification(
+                  id: order['id'],
+                  title: 'Makanan Siap! 🤤',
+                  body: 'Silakan ambil pesananmu.',
+                );
+              }
+            }
+          });
+    }
   }
 }
